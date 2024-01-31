@@ -1,0 +1,452 @@
+#!/bin/bash
+
+# MPVIVAL - run MPV adjusted at intervals of the total duration of a file
+# SPDX-License-Identifier: Unlicense
+#
+# This small work is dedicated to all those helping to protect endangered species.
+# 2024 Looper Guará
+
+q=1 # time in seconds to press a key and quit the script
+
+# this script
+scr1pt() {
+	basename "$0"
+}
+
+# required software
+swreq() {
+	type ffprobe >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FFPROBE not found - aborting."; exit 1; }
+	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; }
+	type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
+	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; }
+}
+
+# get media stream duration
+getdur() {
+	ffprobe -v quiet -show_entries format\=duration:stream\=duration -print_format default\=noprint_wrappers\=1:nokey\=1 -i "$f1" | grep -oE '[0-9]+' | head -n 1
+}
+
+# get interval count and duration
+getiparam() {
+	if echo "$dur" | grep -qvE '^[0-9]+$' ; then # unknown total duration
+		idur="$_length"
+		ivals=1
+	elif [ "$dur" -le 12 ] ; then # maximum undivided duration
+		idur="$dur"
+		ivals=1
+	elif [ "$dur" -le 60 ] ; then
+		idur=$(( dur / ( 1 * scal ) ))
+		ivals="$scal" # compensates for whole number calculations
+	elif [ "$dur" -le 327 ] ; then
+		idur=$(( dur / ( 2 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 654 ] ; then
+		idur=$(( dur / ( 3 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 981 ] ; then
+		idur=$(( dur / ( 4 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 1309 ] ; then
+		idur=$(( dur / ( 5 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 1636 ] ; then
+		idur=$(( dur / ( 6 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 1963 ] ; then
+		idur=$(( dur / ( 7 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 2290 ] ; then
+		idur=$(( dur / ( 8 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 2618 ] ; then
+		idur=$(( dur / ( 9 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 2945 ] ; then
+		idur=$(( dur / ( 10 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 3272 ] ; then
+		idur=$(( dur / ( 11 * scal ) ))
+		ivals=$(( dur / idur ))
+	elif [ "$dur" -le 3600 ] ; then
+		idur=$(( dur / ( 12 * scal ) ))
+		ivals=$(( dur / idur ))
+	else # fixed interval durations for a total duration greater than one hour
+		if [ "$scal" -eq 1 ] ; then
+			idur=300
+		elif [ "$scal" -eq 2 ] ; then
+			idur=240
+		elif [ "$scal" -eq 3 ] ; then
+			idur=180
+		elif [ "$scal" -eq 4 ] ; then
+			idur=120
+		elif [ "$scal" -eq 5 ] ; then
+			idur=60
+		fi
+			ivals=$(( dur / idur ))
+	fi
+
+	if [ "$_length" -gt "$idur" ] ; then
+		_length="$idur" # clip duration entered must be equal to the calculated interval duration at most
+		echo "$(scr1pt): INFO: Clip duration reset: ${idur}s"
+	fi
+}
+
+# wait and confirm to quit the script
+uquit() {
+	echo "$(scr1pt): INFO: Press any key to quit the script or to skip the file."
+	read -rst "$q" -N 1
+	if [ "$?" -eq 0 ] ; then
+		echo "$(scr1pt): File: $f1"
+		echo "$(scr1pt): Interval: $ival / $ivals ($(( ( iterin - 1 ) * idur ))-$(( idur * iterin ))s)"
+		echo "$(scr1pt): Please confirm:"
+		select ans in "QUIT the script" "SKIP the file" "Cancel" ; do
+			case "$ans" in
+				'QUIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) successful iterations - exiting..." ; exit;;
+				'SKIP the file' ) return 1;;
+				'Cancel' ) break;;
+			esac
+		done 2>&1
+	fi
+}
+
+core() {
+	if [ -z "$dur" ] ; then
+		echo "$(scr1pt): INFO: Total duration unknown - playing video from beginning."
+	fi
+	echo "$(scr1pt): Interval: $ival / $ivals ($(( ( iterin - 1 ) * idur ))-$(( idur * iterin ))s)"
+	echo "$(scr1pt): Options:" "${@:-None}"
+	echo "$(scr1pt): Starting mpv..."
+	mpv "$@" "$f1"
+}
+
+# playlist function where lines are parsed
+core_ll() {
+	for line in $(grep -v '[[:space:]]' "$fl1" | paste -s) ; do # each line without whitespace
+		if [ ! -f "$line" ] ; then # skip line without file
+			if [ ${#line} -gt 90 ] ; then
+				echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
+				continue
+			else
+				echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
+				continue
+			fi
+		fi
+		f1="$line"
+		_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
+		dur="$(getdur)" # total duration
+		getiparam # interval count and duration
+		for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
+			iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
+			iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
+			_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
+			if (( iterout>1 )) ; then
+				uquit # not before the first file
+				if [ "$?" -eq 1 ] ; then # skip the file
+					unset _start
+					unset iterin
+					continue 2
+				fi
+			fi
+			core --start\="$_start" --length\="$_length" "$@"
+		done
+		unset _start
+		unset iterin
+	done
+}
+
+if (( "$#"==0 )) ; then
+	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [--ll] file | --help | --version}"
+elif [ '--version' = "$1" ] ; then
+	echo "mpvival 0.3"
+elif [ '--help' = "$1" ] ; then
+	cat << '_EOF_'
+MPVIVAL - run MPV adjusted at intervals of the total duration of a file
+
+	SYNOPSIS
+mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] file | --help |
+	--version}
+
+	DESCRIPTION
+MPVIVAL is a bash script that runs MPV with the start and length of playback set
+based on intervals of the total duration.
+
+MPV is run with the options: --start, --length.
+MPV profile names are parsed and MPV is run according to: --profile.
+MPV is only invoked once for each interval of the total duration of a file. The
+playback start time is random and moves forward in the stream without repeating.
+Intervals are calculated using a scale. The clip duration is reset to the
+interval length if it is longer than the interval. Input directories are
+expanded recursively. If a key is pressed within 1 second before MPV runs again,
+the script may exit, continue, or skip the file after confirmation.
+Status messages report clip duration, number of intervals, successful
+iterations, and MPV options used.
+
+	INTERVAL SCALE
+Intervals are scaled based on a range of 1 to 5, where 5 divides 1 hour into 60
+one-minute intervals and 1 does not divide 1 minute. 12 seconds is the longest
+undivided duration. More than 1 hour, the duration is divided into intervals of
+5, 4, 3, 2 or 1 minutes for the scale of 1, 2, 3, 4 or 5 respectively.
+
+Number of intervals per scale and longest duration between 60 and 3600 seconds:
+Duration/Scale	1	2	3	4	5
+60		1	2	3	4	5
+327		2	4	6	8	10
+654		3	6	9	12	15
+981		4	8	12	16	20
+1309		5	10	15	20	25
+1636		6	12	18	24	30
+1963		7	14	21	28	35
+2290		8	16	24	32	40
+2618		9	18	27	36	45
+2945		10	20	30	40	50
+3272		11	22	33	44	55
+3600		12	24	36	48	60
+
+	For a 1 minute video, clip duration of 2 seconds, and interval scale 3:
+mpvival 2 3 foo.mp4
+	How MPV is run a first and second time, showing a random start time:
+mpv --start=7 --length=2 foo.mp4 ; \
+mpv --start=20 --length=2 foo.mp4 ; \
+mpv --start=48 --length=2 foo.mp4
+
+mpv --start=18 --length=2 foo.mp4 ; \
+mpv --start=37 --length=2 foo.mp4 ; \
+mpv --start=41 --length=2 foo.mp4
+
+	OPTIONS
+The interval scale number is followed by files unless a playlist flag is entered
+on the command line, which must follow the scale. Usage is printed if no
+arguments are given.
+
+	<mpv profile,...>
+Name of the MPV profile to use.
+
+	For a 1 minute video, clip duration of 1 second, and interval scale 2:
+mpvival gpu-hq 1 2 foo.mp4
+	How MPV is run with a random start time:
+mpv --start=25 --length=1 --profile=gpu-hq foo.mp4 ; \
+mpv --start=54 --length=1 --profile=gpu-hq foo.mp4
+
+	<clip duration>
+How long a file should play during each interval of the total duration in
+seconds. MPV option --length.
+
+	<interval scale>
+An integer between 1 and 5 for the interval scale where the higher the number,
+the more intervals and therefore the more times the file is played.
+
+	--ll file
+Plaintext playlist where each line is a file location. A line must not contain
+blanks, otherwise it is ignored.
+
+	For the playlist file foo.txt that contains the following two lines,
+	where foo1.mp4 is 1 minute and foo2.mp4 is 2 minutes:
+/path/to/foo1.mp4
+foo2.mp4
+
+	And command line:
+mpvival 2 1 --ll foo.txt
+	How MPV is run with a random start time:
+mpv --start=21 --length=2 /path/to/foo1.mp4 ; \
+mpv --start=17 --length=2 foo2.mp4 ; \
+mpv --start=84 --length=2 foo2.mp4
+
+	--version
+Display version information.
+
+	--help
+Print this help summary.
+
+	DEPENDENCIES
+FFmpeg (ffprobe)
+file (command)
+GNU Bourne-Again SHell (Bash)
+GNU Coreutils (basename, echo, paste, realpath, shuf)
+GNU Grep
+mpv
+
+	COPYRIGHT
+Unlicense <http://unlicense.org/>
+This is free and unencumbered software released into the public domain and
+provided without warranty of any kind.
+_EOF_
+elif [ '--ll' = "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # clip duration + interval scale + playlist
+	swreq
+	_lengtho="$1" # entered clip duration
+	scal="$2" # interval scale
+	if [ -r "$4" ] ; then
+		if file -b --mime-type "$4" | grep -q 'text/plain' ; then # plain text file
+			if grep -q '[^[:space:]]' < "$4" ; then # not empty
+				fl1="$4" # playlist file
+				core_ll
+			else
+				echo >&2 "$(scr1pt): WARNING: Empty file: $4"
+				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $4"
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		fi
+	else
+		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	fi
+	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + playlist
+	swreq
+	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
+		_lengtho="$1" # entered clip duration
+		prf="$2" # mpv profile
+		scal="$3" # interval scale
+	elif echo "$2" | grep -qE "^[0-9]+$" && (( "$2">0 )) ; then # assuming number is clip duration
+		prf="$1" # mpv profile
+		_lengtho="$2" # entered clip duration
+		scal="$3" # interval scale
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	if [ -r "$5" ] ; then
+		if file -b --mime-type "$5" | grep -q 'text/plain' ; then # plain text file
+			if grep -q '[^[:space:]]' < "$5" ; then # not empty
+				fl1="$5" # playlist file
+				core_ll --profile\="$prf"
+			else
+				echo >&2 "$(scr1pt): WARNING: Empty file: $5"
+				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $5"
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		fi
+	else
+		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	fi
+	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+elif [ -e "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # clip duration + interval scale + file
+	swreq
+	_lengtho="$1" # entered clip duration
+	scal="$2" # interval scale
+	shift # input file only
+	for f1 in "$@" ; do
+		if [ -f "$f1" ] ; then
+			_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
+			dur="$(getdur)" # total duration
+			getiparam # interval count and duration
+			for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
+				iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
+				iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
+				_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
+				if (( iterout>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						unset _start
+						unset iterin
+						continue 2
+					fi
+				fi
+				core --start\="$_start" --length\="$_length"
+			done
+			unset _start
+			unset iterin
+		elif [ -d "$f1" ] ; then
+			shopt -qs globstar
+			f1a="$(realpath "$f1")"
+			for f1b in "${f1a}"/**/*.* ; do # files in and below input directory
+				unset f1
+				f1="$f1b" # path and file
+				_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
+				dur="$(getdur)" # total duration
+				getiparam # interval count and duration
+				for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
+					iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
+					iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
+					_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							unset _start
+							unset iterin
+							continue 2
+						fi
+					fi
+					core --start\="$_start" --length\="$_length"
+				done
+				unset _start
+				unset iterin
+			done
+		fi
+	done
+	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+elif [ -e "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + file
+	swreq
+	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
+		_lengtho="$1" # entered clip duration
+		prf="$2" # mpv profile
+		scal="$3" # interval scale
+	elif echo "$2" | grep -qE "^[0-9]+$" && (( "$2">0 )) ; then # assuming number is clip duration
+		prf="$1" # mpv profile
+		_lengtho="$2" # entered clip duration
+		scal="$3" # interval scale
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	shift 2 # input file only
+	for f1 in "$@" ; do
+		if [ -f "$f1" ] ; then
+			_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
+			dur="$(getdur)" # total duration
+			getiparam # interval count and duration
+			for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
+				iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
+				iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
+				_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
+				if (( iterout>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						unset _start
+						unset iterin
+						continue 2
+					fi
+				fi
+				core --start\="$_start" --length\="$_length" --profile\="$prf"
+			done
+			unset _start
+			unset iterin
+		elif [ -d "$f1" ] ; then
+			shopt -qs globstar
+			f1a="$(realpath "$f1")"
+			for f1b in "${f1a}"/**/*.* ; do # files in and below input directory
+				unset f1
+				f1="$f1b" # path and file
+				_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
+				dur="$(getdur)" # total duration
+				getiparam # interval count and duration
+				for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
+					iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
+					iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
+					_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							unset _start
+							unset iterin
+							continue 2
+						fi
+					fi
+					core --start\="$_start" --length\="$_length" --profile\="$prf"
+				done
+				unset _start
+				unset iterin
+			done
+		fi
+	done
+	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+else
+	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+	echo "$(scr1pt): Help summary: $(scr1pt) --help"
+fi
