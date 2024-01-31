@@ -62,8 +62,7 @@ mpv --start=1 --end=2 foo-a1b2-a10b20.mp4
 </details>
 
 ## Options
-MPV profile names and a single loop pattern without flags can be entered on the command line. Options also include playlists and time format conversions.
-Descriptions and examples in the Wiki.
+MPV profile names and a single loop pattern without flags can be entered on the command line. Options also include playlists and time format conversions. Descriptions and examples in the Wiki.
 
 ## Dependencies
 - Awk
@@ -118,8 +117,7 @@ $ mpvclip a12b34 path/to/foo-a12b34Earth-a23b45Mars.mp4
 </details>
 
 ## Options
-MPV profile names and a single tag without flags can be entered on the command line. Input directories or a playlist are searched.
-Descriptions and examples in the Wiki.
+MPV profile names and a single tag without flags can be entered on the command line. Input directories or a playlist are searched. Descriptions and examples in the Wiki.
 
 ## Dependencies
 - file (command)
@@ -133,3 +131,74 @@ One or the other in a $PATH location:
 - mpvloop (MPVLOOPF)
 - mpvclip (MPVCLIPF)
 
+# MPVIVAL
+MPVIVAL is a bash script that runs MPV with the start and length of playback set based on intervals of the total duration of a file.
+
+## Usage
+```
+mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] file | --help | --version}
+```
+
+## Description
+MPV is run with the options: --start, --length.
+
+MPV profile names are parsed and MPV is run according to: --profile.
+
+MPV is only invoked once for each interval of the total duration of a file. The playback start time is random and moves forward in the stream without repeating. Intervals are calculated using a scale. The clip duration is reset to the interval length if it is longer than the interval.
+
+Input directories are expanded recursively. If a key is pressed within 1 second before MPV runs again, the script may exit, continue, or skip the file after confirmation.
+
+Status messages report clip duration, number of intervals, successful iterations, and MPV options used.
+
+## Interval Scale
+Intervals are scaled based on a range of 1 to 5, where 5 divides 1 hour into 60 one-minute intervals and 1 does not divide 1 minute.
+
+12 seconds is the longest undivided duration. More than 1 hour, the duration is divided into intervals of 5, 4, 3, 2 or 1 minutes for the scale of 1, 2, 3, 4 or 5 respectively.
+
+Number of intervals per scale and longest duration between 60 and 3600 seconds:
+| Duration/Scale | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- |
+| 60 | 1 | 2 | 3 | 4 | 5 |
+| 327 | 2 | 4 | 6 | 8 | 10 |
+| 654 | 3 | 6 | 9 | 12 | 15 |
+| 981 | 4 | 8 | 12 | 16 | 20 |
+| 1309 | 5 | 10 | 15 | 20 | 25 |
+| 1636 | 6 | 12 | 18 | 24 | 30 |
+| 1963 | 7 | 14 | 21 | 28 | 35 |
+| 2290 | 8 | 16 | 24 | 32 | 40 |
+| 2618 | 9 | 18 | 27 | 36 | 45 |
+| 2945 | 10 | 20 | 30 | 40 | 50 |
+| 3272 | 11 | 22 | 33 | 44 | 55 |
+| 3600 | 12 | 24 | 36 | 48 | 60 |
+
+<details>
+<summary>Examples</summary>
+
+For a 1 minute video, clip duration of 2 seconds, and interval scale 3:
+```
+$ mpvival 2 3 foo.mp4
+```
+How MPV is run a first and second time, showing a random start time:
+```
+$ mpv --start=7 --length=2 foo.mp4 ; \
+mpv --start=20 --length=2 foo.mp4 ; \
+mpv --start=48 --length=2 foo.mp4
+```
+```
+$ mpv --start=18 --length=2 foo.mp4 ; \
+mpv --start=37 --length=2 foo.mp4 ; \
+mpv --start=41 --length=2 foo.mp4
+```
+
+</details>
+
+## Options
+The interval scale number is followed by files unless a playlist flag is entered on the command line, which must follow the scale. Descriptions and examples in the Wiki.
+
+## Dependencies
+- FFmpeg (ffprobe)
+- file (command)
+- GNU Bourne-Again SHell (Bash)
+- GNU Coreutils
+- GNU Grep
+- mpv
