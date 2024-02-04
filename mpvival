@@ -155,16 +155,16 @@ core_ll() {
 }
 
 if (( "$#"==0 )) ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [--ll] file | --help | --version}"
+	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [--ll] [path/]filename | --help | --version}"
 elif [ '--version' = "$1" ] ; then
-	echo "mpvival 0.3"
+	echo "mpvival 0.4"
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVIVAL - run MPV adjusted at intervals of the total duration of a file
 
 	SYNOPSIS
-mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] file | --help |
-	--version}
+mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] [path/]filename |
+	--help | --version}
 
 	DESCRIPTION
 MPVIVAL is a bash script that runs MPV with the start and length of playback set
@@ -229,11 +229,11 @@ mpv --start=54 --length=1 --profile=gpu-hq foo.mp4
 
 	<clip duration>
 How long a file should play during each interval of the total duration in
-seconds. MPV option --length.
+seconds.
 
 	<interval scale>
-An integer between 1 and 5 for the interval scale where the higher the number,
-the more intervals and therefore the more times the file is played.
+An integer between 1 and 5 where the higher the number, the more intervals and
+therefore the more times the file is played.
 
 	--ll file
 Plaintext playlist where each line is a file location. A line must not contain

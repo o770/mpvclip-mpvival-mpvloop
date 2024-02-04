@@ -177,7 +177,7 @@ MPVLOOP - run MPV with loop options set according to a pattern.
 
 	SYNOPSIS
 mpvloop {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename |
---lpat <timestamp range>... | --help | --version}
+	--lpat <timestamp range>... | --help | --version}
 
 	DESCRIPTION
 MPVLOOP is a bash script that executes MPV with loop playback options set
@@ -297,7 +297,7 @@ instead of seconds.
 l ab-loop ; print-text "ab-loop=${=time-pos}"
 _EOF_
 elif [ '--version' = "$1" ] ; then # version
-	echo "mpvloop 0.5" # update01
+	echo "mpvloop 0.6" # update01
 elif [ '--lpat' = "$1" ] ; then # timestamp format conversion to loop pattern: HH:MM:SS[.n]-HH:MM:SS[.n]
 	swreq
 	if [ -n "$2" ] ; then
@@ -509,18 +509,14 @@ elif [ -e "$3" ] && echo "$2" | grep -oqE \^"${lpat}"\$ || echo "$1" | grep -oqE
 			fi
 			core --profile\="$profile"
 		else # update01
-			echo >&2 "$(scr1pt): WARNING: Invalid options:" "$@"
-			echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}"
+			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
 	done
 	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
 elif [ "$#" -eq 0 ] ; then
 	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}"
-	echo "$(scr1pt): Help summary: $(scr1pt) --help"
 else
-	echo >&2 "$(scr1pt): WARNING: Invalid options:" "$@"
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}"
+	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 	echo "$(scr1pt): Help summary: $(scr1pt) --help"
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..." # update01
 fi
