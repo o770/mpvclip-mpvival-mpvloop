@@ -14,7 +14,7 @@ MPVCLIP runs MPV with any combination or none of the options: --start, --end.
 
 MPV profile names are parsed and MPV is run according to: --profile.
 
-MPV is only invoked to play a file with a loop pattern and is executed once for each loop pattern; otherwise the files are skipped. Input directories are expanded recursively. The line is read from left to right. If a key is pressed within one second before MPV runs again, the script may exit or continue after confirmation.
+MPV is only invoked to play a file with a loop pattern and is executed once for each loop pattern; otherwise the files are skipped. Input directories are expanded recursively. The line is read from left to right. If a key is pressed within one second before MPV runs again, the script may exit, continue, or skip the file after confirmation.
 
 Status messages report clip patterns and MPV options used, clip duration, invalid inputs such as a file name without a pattern, and the number of successful iterations.
 
@@ -86,7 +86,7 @@ Once for each tagged clip/loop pattern associated with a file and optionally a p
 
 MPVCLIPF executes MPVCLIP; MPVLOOPF executes MPVLOOP; the file plays according to the tagged pattern.
 
-Entered directories are searched recursively. The line is read from left to right. If a key is pressed within one second before MPVCLIP or MPVLOOP is executed again, the script may exit or continue after confirmation.
+Entered directories are searched recursively. The line is read from left to right. If a key is pressed within one second before MPVCLIP or MPVLOOP is executed again, the script may exit, continue, or skip the file after confirmation.
 
 Status messages report the specified tag, invalid inputs, and the number of successful iterations. Both scripts run independently of each other.
 
@@ -202,3 +202,4 @@ The interval scale number is followed by files unless a playlist flag is entered
 - GNU Coreutils
 - GNU Grep
 - mpv
+
