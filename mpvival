@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MPVIVAL - run MPV adjusted at intervals of the total duration of a file
+# MPVIVAL - run MPV adjusted at intervals of the total duration of a file.
 # SPDX-License-Identifier: Unlicense
 #
 # This small work is dedicated to all those helping to protect endangered species.
@@ -23,7 +23,7 @@ swreq() {
 
 # get media stream duration
 getdur() {
-	ffprobe -v quiet -show_entries format\=duration:stream\=duration -print_format default\=noprint_wrappers\=1:nokey\=1 -i "$f1" | grep -oE '[0-9]+' | head -n 1
+	ffprobe -v quiet -show_entries format=duration:stream=duration -print_format default=noprint_wrappers=1:nokey=1 -i "$f1" | grep -oE '[0-9]+' | head -n 1
 }
 
 # get interval count and duration
@@ -93,16 +93,16 @@ getiparam() {
 
 # wait and confirm to quit the script
 uquit() {
-	echo "$(scr1pt): INFO: Press any key to quit the script or to skip the file."
+	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
 	read -rst "$q" -N 1
 	if [ "$?" -eq 0 ] ; then
 		echo "$(scr1pt): File: $f1"
 		echo "$(scr1pt): Interval: $ival / $ivals ($(( ( iterin - 1 ) * idur ))-$(( idur * iterin ))s)"
 		echo "$(scr1pt): Please confirm:"
-		select ans in "QUIT the script" "SKIP the file" "Cancel" ; do
+		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
-				'QUIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) successful iterations - exiting..." ; exit;;
-				'SKIP the file' ) return 1;;
+				'EXIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) iterations completed - exiting..." ; exit;;
+				'SKIP file' ) return 1;;
 				'Cancel' ) break;;
 			esac
 		done 2>&1
@@ -142,12 +142,13 @@ core_ll() {
 			if (( iterout>1 )) ; then
 				uquit # not before the first file
 				if [ "$?" -eq 1 ] ; then # skip the file
+					iterout=$(( iterout - 1 ))
 					unset _start
 					unset iterin
 					continue 2
 				fi
 			fi
-			core --start\="$_start" --length\="$_length" "$@"
+			core --start="$_start" --length="$_length" "$@"
 		done
 		unset _start
 		unset iterin
@@ -157,7 +158,7 @@ core_ll() {
 if (( "$#"==0 )) ; then
 	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [--ll] [path/]filename | --help | --version}"
 elif [ '--version' = "$1" ] ; then
-	echo "mpvival 0.4"
+	echo "mpvival 0.5"
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVIVAL - run MPV adjusted at intervals of the total duration of a file
@@ -291,7 +292,7 @@ elif [ '--ll' = "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
-	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + playlist
 	swreq
 	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
@@ -311,7 +312,7 @@ elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + 
 		if file -b --mime-type "$5" | grep -q 'text/plain' ; then # plain text file
 			if grep -q '[^[:space:]]' < "$5" ; then # not empty
 				fl1="$5" # playlist file
-				core_ll --profile\="$prf"
+				core_ll --profile="$prf"
 			else
 				echo >&2 "$(scr1pt): WARNING: Empty file: $5"
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
@@ -324,7 +325,7 @@ elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + 
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
-	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 elif [ -e "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # clip duration + interval scale + file
 	swreq
 	_lengtho="$1" # entered clip duration
@@ -342,12 +343,13 @@ elif [ -e "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-
 				if (( iterout>1 )) ; then
 					uquit # not before the first file
 					if [ "$?" -eq 1 ] ; then # skip the file
+						iterout=$(( iterout - 1 ))
 						unset _start
 						unset iterin
 						continue 2
 					fi
 				fi
-				core --start\="$_start" --length\="$_length"
+				core --start="$_start" --length="$_length"
 			done
 			unset _start
 			unset iterin
@@ -367,19 +369,20 @@ elif [ -e "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-
 					if (( iterout>1 )) ; then
 						uquit # not before the first file
 						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
 							unset _start
 							unset iterin
 							continue 2
 						fi
 					fi
-					core --start\="$_start" --length\="$_length"
+					core --start="$_start" --length="$_length"
 				done
 				unset _start
 				unset iterin
 			done
 		fi
 	done
-	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 elif [ -e "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + file
 	swreq
 	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
@@ -408,12 +411,13 @@ elif [ -e "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip d
 				if (( iterout>1 )) ; then
 					uquit # not before the first file
 					if [ "$?" -eq 1 ] ; then # skip the file
+						iterout=$(( iterout - 1 ))
 						unset _start
 						unset iterin
 						continue 2
 					fi
 				fi
-				core --start\="$_start" --length\="$_length" --profile\="$prf"
+				core --start="$_start" --length="$_length" --profile="$prf"
 			done
 			unset _start
 			unset iterin
@@ -433,19 +437,20 @@ elif [ -e "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip d
 					if (( iterout>1 )) ; then
 						uquit # not before the first file
 						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
 							unset _start
 							unset iterin
 							continue 2
 						fi
 					fi
-					core --start\="$_start" --length\="$_length" --profile\="$prf"
+					core --start="$_start" --length="$_length" --profile="$prf"
 				done
 				unset _start
 				unset iterin
 			done
 		fi
 	done
-	echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 else
 	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 	echo "$(scr1pt): Help summary: $(scr1pt) --help"

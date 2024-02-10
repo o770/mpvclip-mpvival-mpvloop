@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# MPVLOOPF - run MPVLOOP to play tagged loops
+# MPVLOOPF - run MPVLOOP to play tagged loops.
 # SPDX-License-Identifier: Unlicense
 #
 # This small work is dedicated to all those helping to protect endangered species.
@@ -13,7 +13,7 @@ d=, # playlist fields delimiter
 
 # this script
 scr1pt() {
-basename "$0"
+	basename "$0"
 }
 
 if [ "$#" -eq 0 ] ; then
@@ -112,63 +112,69 @@ provided without warranty of any kind.
 _EOF_
 	exit
 elif [ '--version' = "$1" ] ; then
-	echo "mpvloopf 0.2"
+	echo "mpvloopf 0.3"
 	exit
 fi
 
 # required software
 swreq() {
-type "$_mpvloop" >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPVLOOP not found - aborting."; exit 1; }
-type find >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: FIND not found - aborting."; exit 1; }
-type grep >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: GREP not found - aborting."; exit 1; }
-type file >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: FILE (command) not found - aborting."; exit 1; }
-type mpv >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPV not found - aborting."; exit 1; }
+	type "$_mpvloop" >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPVLOOP not found - aborting."; exit 1; }
+	type find >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: FIND not found - aborting."; exit 1; }
+	type grep >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: GREP not found - aborting."; exit 1; }
+	type file >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: FILE (command) not found - aborting."; exit 1; }
+	type mpv >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPV not found - aborting."; exit 1; }
 }
 
 # wait and confirm to quit the script
 uquit() {
-echo "$(scr1pt): INFO: Press any key to quit"
-read -rst "$q" -N 1
-if [ "$?" -eq 0 ] ; then
-	echo "$(scr1pt): Please confirm (1/2)"
-	select c in "Yes" "No" ; do
-		case "$c" in
-			'Yes' ) echo "$(scr1pt): $(( iterout - 1 )) successful iterations - exiting..." ; exit;;
-			'No' ) break;;
-		esac
-	done 2>&1
-fi
+	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
+	read -rst "$q" -N 1
+	if [ "$?" -eq 0 ] ; then
+		echo "$(scr1pt): File: $f1"
+		echo "$(scr1pt): Please confirm:"
+		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
+			case "$ans" in
+				'EXIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) iterations completed - exiting..." ; exit;;
+				'SKIP file' ) return 1;;
+				'Cancel' ) break;;
+			esac
+		done 2>&1
+	fi
 }
 
 # playlist function where lines are parsed
 core_ll() {
-for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
-	f1="$(echo "$line" | cut -d "$d" -f 1)" # file
-	if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
-		if [ ${#line} -gt 90 ] ; then
-			echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
-			continue
-		else
-			echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
-			continue
-		fi
-	fi
-	for ab2 in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each loop pattern on each line
-		if echo "$ab2" | grep -qoE \^"${lpat}${ltag}"\$ ; then
-			ab=$(echo "$ab2" | grep -oE "$lpat")
-			iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-			if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-				uquit
+	for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
+		f1="$(echo "$line" | cut -d "$d" -f 1)" # file
+		if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
+			if [ ${#line} -gt 90 ] ; then
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
+				continue
+			else
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
+				continue
 			fi
-			echo "$(scr1pt): Loop tag: $ltag"
-			echo "$(scr1pt): Starting ${_mpvloop}..."
-			"$_mpvloop" "$@" "$ab" "$f1"
-		else
-			echo >&2 "$(scr1pt): WARNING: Invalid loop pattern - skipping: $ab2"
-			continue
 		fi
+		for ab2 in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each loop pattern on each line
+			if echo "$ab2" | grep -qoE \^"${lpat}${ltag}"\$ ; then
+				ab=$(echo "$ab2" | grep -oE "$lpat")
+				iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
+				if (( iterout>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iterout=$(( iterout - 1 ))
+						continue 2
+					fi
+				fi
+				echo "$(scr1pt): Loop tag: $ltag"
+				echo "$(scr1pt): Starting ${_mpvloop}..."
+				"$_mpvloop" "$@" "$ab" "$f1"
+			else
+				echo >&2 "$(scr1pt): WARNING: Invalid loop pattern - skipping: $ab2"
+				continue
+			fi
+		done
 	done
-done
 }
 
 if [ ! -e "$1" ] ; then
@@ -193,7 +199,7 @@ if [ ! -e "$1" ] ; then
 			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	elif [ '-p' = "$2" ] && [ -e "$4" ] ; then # loop tag + path pattern + pathname
 		ltag="$1" # define loop tag
 		ppat="$3" # define path pattern
@@ -206,8 +212,12 @@ if [ ! -e "$1" ] ; then
 						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
 								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-									uquit
+								if (( iterout>1 )) ; then
+									uquit # not before the first file
+									if [ "$?" -eq 1 ] ; then # skip the file
+										iterout=$(( iterout - 1 ))
+										continue 2
+									fi
 								fi
 								echo "$(scr1pt): Loop tag: $ltag"
 								echo "$(scr1pt): Starting ${_mpvloop}..."
@@ -220,19 +230,24 @@ if [ ! -e "$1" ] ; then
 				fi
 			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
+					f1="$f3"
 					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-						uquit
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
+							break
+						fi
 					fi
 					echo "$(scr1pt): Loop tag: $ltag"
 					echo "$(scr1pt): Starting ${_mpvloop}..."
-					"$_mpvloop" "$ab" "$f3"
+					"$_mpvloop" "$ab" "$f1"
 				done
 			else
 				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
 			fi
 		done
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	elif [ '--ll' = "$3" ] ; then # profile + loop tag + playlist file
 		if [ "$#" -eq 4 ] && [ -r "$4" ] ; then
 			if file -b --mime-type "$4" | grep -q 'text/plain' ; then # plain text file
@@ -241,7 +256,7 @@ if [ ! -e "$1" ] ; then
 						iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
 						if [ -n "$prf" ] ; then
 							ltag="$arg" # define loop tag if MPV profile defined already
-						elif mpv --show-profile\="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+						elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
 							if [ "$iterin" -eq 1 ] ; then
 								ltag="$arg" # define loop tag if first iteration and no MPV profile
 							else
@@ -272,14 +287,14 @@ if [ ! -e "$1" ] ; then
 			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	elif [ '-p' = "$3" ] && [ -e "$5" ] ; then # profile + loop tag + path pattern + pathname
 		ppat="$4" # define path pattern
 		for arg in "$1" "$2" ; do
 			iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
 			if [ -n "$prf" ] ; then
 				ltag="$arg" # define loop tag if MPV profile defined already
-			elif mpv --show-profile\="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+			elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
 				if [ "$iterin" -eq 1 ] ; then
 					ltag="$arg" # define loop tag if first iteration and no MPV profile
 				else
@@ -304,8 +319,12 @@ if [ ! -e "$1" ] ; then
 						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
 								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-									uquit
+								if (( iterout>1 )) ; then
+									uquit # not before the first file
+									if [ "$?" -eq 1 ] ; then # skip the file
+										iterout=$(( iterout - 1 ))
+										continue 2
+									fi
 								fi
 								echo "$(scr1pt): Loop tag: $ltag"
 								echo "$(scr1pt): Starting ${_mpvloop}..."
@@ -318,25 +337,30 @@ if [ ! -e "$1" ] ; then
 				fi
 			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
+					f1="$f3"
 					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-						uquit
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
+							break
+						fi
 					fi
 					echo "$(scr1pt): Loop tag: $ltag"
 					echo "$(scr1pt): Starting ${_mpvloop}..."
-					"$_mpvloop" "$prf" "$ab" "$f3"
+					"$_mpvloop" "$prf" "$ab" "$f1"
 				done
 			else
 				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
 			fi
 		done
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	elif [ ! -e "$2" ] && [ -e "$3" ] ; then # profile + loop tag
 		for arg in "$1" "$2" ; do
 			iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
 			if [ -n "$prf" ] ; then
 				ltag="$arg" # define loop tag if MPV profile defined already
-			elif mpv --show-profile\="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+			elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
 				if [ "$iterin" -eq 1 ] ; then
 					ltag="$arg" # define loop tag if first iteration and no MPV profile
 				else
@@ -361,8 +385,12 @@ if [ ! -e "$1" ] ; then
 						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
 								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-									uquit
+								if (( iterout>1 )) ; then
+									uquit # not before the first file
+									if [ "$?" -eq 1 ] ; then # skip the file
+										iterout=$(( iterout - 1 ))
+										continue 2
+									fi
 								fi
 								echo "$(scr1pt): Loop tag: $ltag"
 								echo "$(scr1pt): Starting ${_mpvloop}..."
@@ -375,19 +403,24 @@ if [ ! -e "$1" ] ; then
 				fi
 			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
+					f1="$f3"
 					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-						uquit
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
+							break
+						fi
 					fi
 					echo "$(scr1pt): Loop tag: $ltag"
 					echo "$(scr1pt): Starting ${_mpvloop}..."
-					"$_mpvloop" "$prf" "$ab" "$f3"
+					"$_mpvloop" "$prf" "$ab" "$f1"
 				done
 			else
 				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
 			fi
 		done
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	elif [ -e "$2" ] ; then # loop tag + pathname
 		ltag="$1" # define loop tag
 		shift 1 # input directories only
@@ -399,8 +432,12 @@ if [ ! -e "$1" ] ; then
 						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
 								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-									uquit
+								if (( iterout>1 )) ; then
+									uquit # not before the first file
+									if [ "$?" -eq 1 ] ; then # skip the file
+										iterout=$(( iterout - 1 ))
+										continue 2
+									fi
 								fi
 								echo "$(scr1pt): Loop tag: $ltag"
 								echo "$(scr1pt): Starting ${_mpvloop}..."
@@ -413,19 +450,24 @@ if [ ! -e "$1" ] ; then
 				fi
 			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
 				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid loop pattern in filename
+					f1="$f3"
 					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if [ "$iterout" -ne 1 ] ; then # no quit function in first iteration
-						uquit
+					if (( iterout>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iterout=$(( iterout - 1 ))
+							break
+						fi
 					fi
 					echo "$(scr1pt): Loop tag: $ltag"
 					echo "$(scr1pt): Starting ${_mpvloop}..."
-					"$_mpvloop" "$ab" "$f3"
+					"$_mpvloop" "$ab" "$f1"
 				done
 			else
 				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
 			fi
 		done
-		echo "$(scr1pt): ${iterout:-0} successful iterations - exiting..."
+		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 	else
 		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"

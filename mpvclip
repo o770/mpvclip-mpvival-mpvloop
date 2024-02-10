@@ -13,116 +13,122 @@ d=, # field delimiter in playlist
 
 # update01: this script file
 scr1pt() {
-basename "$0"
+	basename "$0"
 }
 
 # required software
 swreq() {
-type awk >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: AWK not found - aborting."; exit 1; }
-type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; } # update01
-type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; } # update01
-type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
+	type awk >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: AWK not found - aborting."; exit 1; }
+	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; } # update01
+	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; } # update01
+	type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
 }
 
 # timestamp conversion to time representation in clip pattern
 lpat_tt() {
-h=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 1) * 3600 }")
-m=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 2) * 60 }")
-s=$(echo "$1" | cut -d ':' -f 3)
-awk 'BEGIN { printf ("%.0f", ( '"$h"' + '"$m"' + '"$s"' ) / '"$sc"' ) }'
+	h=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 1) * 3600 }")
+	m=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 2) * 60 }")
+	s=$(echo "$1" | cut -d ':' -f 3)
+	awk 'BEGIN { printf ("%.0f", ( '"$h"' + '"$m"' + '"$s"' ) / '"$sc"' ) }'
 }
 
 # lpat a and b functions convert time representation in clip patterns for MPV options
 lpat_aa() {
-echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 1
+	echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 1
 }
 
 lpat_bb() {
-echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 2
+	echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 2
 }
 
 lpat_a() {
-awk "BEGIN { print $aa * $sc }"
+	awk "BEGIN { print $aa * $sc }"
 }
 
 lpat_b() {
-awk "BEGIN { print $bb * $sc }"
+	awk "BEGIN { print $bb * $sc }"
 }
 
 # wait and confirm to quit the script
 uquit() {
-echo "$(scr1pt): INFO: Press any key to quit"
-read -rst "$q" -N 1
-if [ "$?" -eq 0 ] ; then # update01: allowing 0 seconds timeout
-	echo "$(scr1pt): Please confirm (1/2)"
-	select c in "Yes" "No" ; do
-		case "$c" in
-			'Yes' ) echo "$(scr1pt): $(( iter - 1 )) successful iterations - exiting..." ; exit;;
-			'No' ) break;;
-		esac
-	done 2>&1
-fi
+	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
+	read -rst "$q" -N 1
+	if [ "$?" -eq 0 ] ; then
+		echo "$(scr1pt): File: $f1"
+		echo "$(scr1pt): Please confirm:"
+		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
+			case "$ans" in
+				'EXIT the script' ) echo "$(scr1pt): $(( iter - 1 )) iterations completed - exiting..." ; exit;;
+				'SKIP file' ) return 1;;
+				'Cancel' ) break;;
+			esac
+		done 2>&1
+	fi
 }
 
 # main function where time points are set with MPV appropriate options
 core() {
-if [ "$aa" -eq 0 ] && [ "$bb" -eq 0 ] ; then # both time a and b are unset, play file
-	echo "$(scr1pt): Clip pattern: $(echo "$ab" | grep -oE "$lpat") (file)" # update01: only pattern without a possible tag
-	echo "$(scr1pt): Options:" "${@:-None}" # print MPV options
-	echo "$(scr1pt): Starting mpv..."
-	mpv "$@" "$f1"
-	return
-elif [ "$aa" -eq 0 ] ; then # a time unset
-	b=$(lpat_b) # b time
-	echo "$(scr1pt): Clip pattern and duration: $(echo "$ab" | grep -oE "$lpat") (${b}s)" # update01: only pattern without a possible tag
-	echo "$(scr1pt): Options: --end=$b" "$@" # print MPV options
-	echo "$(scr1pt): Starting mpv..."
-	mpv --end="$b" "$@" "$f1"
-	return
-elif [ "$bb" -eq 0 ] ; then # b time unset
+	if [ "$aa" -eq 0 ] && [ "$bb" -eq 0 ] ; then # both time a and b are unset, play file
+		echo "$(scr1pt): Clip pattern: $(echo "$ab" | grep -oE "$lpat") (file)" # update01: only pattern without a possible tag
+		echo "$(scr1pt): Options:" "${@:-None}" # print MPV options
+		echo "$(scr1pt): Starting mpv..."
+		mpv "$@" "$f1"
+		return
+	elif [ "$aa" -eq 0 ] ; then # a time unset
+		b=$(lpat_b) # b time
+		echo "$(scr1pt): Clip pattern and duration: $(echo "$ab" | grep -oE "$lpat") (${b}s)" # update01: only pattern without a possible tag
+		echo "$(scr1pt): Options: --end=$b" "$@" # print MPV options
+		echo "$(scr1pt): Starting mpv..."
+		mpv --end="$b" "$@" "$f1"
+		return
+	elif [ "$bb" -eq 0 ] ; then # b time unset
+		a=$(lpat_a) # a time
+		echo "$(scr1pt): Clip pattern: $(echo "$ab" | grep -oE "$lpat")" # update01: only pattern without a possible tag
+		echo "$(scr1pt): Options: --start=$a" "$@" # print MPV options
+		echo "$(scr1pt): Starting mpv..."
+		mpv --start="$a" "$@" "$f1"
+		return
+	fi
 	a=$(lpat_a) # a time
-	echo "$(scr1pt): Clip pattern: $(echo "$ab" | grep -oE "$lpat")" # update01: only pattern without a possible tag
-	echo "$(scr1pt): Options: --start=$a" "$@" # print MPV options
+	b=$(lpat_b) # b time
+	echo "$(scr1pt): Clip pattern and duration: $(echo "$ab" | grep -oE "$lpat") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)" # update01: only pattern without a possible tag
+	echo "$(scr1pt): Options: --start=$a --end=$b" "$@" # print MPV options
 	echo "$(scr1pt): Starting mpv..."
-	mpv --start="$a" "$@" "$f1"
-	return
-fi
-a=$(lpat_a) # a time
-b=$(lpat_b) # b time
-echo "$(scr1pt): Clip pattern and duration: $(echo "$ab" | grep -oE "$lpat") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)" # update01: only pattern without a possible tag
-echo "$(scr1pt): Options: --start=$a --end=$b" "$@" # print MPV options
-echo "$(scr1pt): Starting mpv..."
-mpv --start="$a" --end="$b" "$@" "$f1"
+	mpv --start="$a" --end="$b" "$@" "$f1"
 }
 
 # playlist function where lines are parsed
 core_ll() {
-for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
-	f1="$(echo "$line" | cut -d "$d" -f 1)" # file
-	if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
-		if [ ${#line} -gt 90 ] ; then
-			echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
-			continue
-		else
-			echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
-			continue
-		fi
-	fi
-	for ab in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each clip pattern on each line
-		if echo "$ab" | grep -qE \^"${lpat}" ; then # update01: pattern may be tagged
-			aa=$(lpat_aa)
-			bb=$(echo "$(lpat_bb)" | grep -oE "[0-9]+") # update01: only deciseconds
-			iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-			if [ "$iter" -ne 1 ] ; then
-				uquit # no quit function in first iteration
+	for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
+		f1="$(echo "$line" | cut -d "$d" -f 1)" # file
+		if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
+			if [ ${#line} -gt 90 ] ; then
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
+				continue
+			else
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
+				continue
 			fi
-			core "$@"
-		else
-			echo >&2 "$(scr1pt): WARNING: Invalid clip pattern - skipping: $ab"
-			continue
 		fi
+		for ab in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each clip pattern on each line
+			if echo "$ab" | grep -qE \^"${lpat}" ; then # update01: pattern may be tagged
+				aa=$(lpat_aa)
+				bb=$(lpat_bb | grep -oE "[0-9]+") # update01: only deciseconds
+				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
+				if (( iter>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iter=$(( iter - 1 ))
+						break
+					fi
+				fi
+				core "$@"
+			else
+				echo >&2 "$(scr1pt): WARNING: Invalid clip pattern - skipping: $ab"
+				continue
+			fi
+		done
 	done
-done
 }
 
 if [ -e "$1" ] ; then # path (file or directory)
@@ -144,8 +150,12 @@ if [ -e "$1" ] ; then # path (file or directory)
 						unset f1 # will allow file instead of directory into the core function
 						f1="$f1b" # this file
 						iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-						if [ "$iter" -ne 1 ] ; then
-							uquit # no quit function in first iteration
+						if (( iter>1 )) ; then
+							uquit # not before the first file
+							if [ "$?" -eq 1 ] ; then # skip the file
+								iter=$(( iter - 1 ))
+								break
+							fi
 						fi
 						core
 					done
@@ -161,8 +171,12 @@ if [ -e "$1" ] ; then # path (file or directory)
 				aa=$(lpat_aa)
 				bb=$(lpat_bb)
 				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if [ "$iter" -ne 1 ] ; then
-					uquit # no quit function in first iteration
+				if (( iter>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iter=$(( iter - 1 ))
+						break
+					fi
 				fi
 				core
 			done
@@ -170,7 +184,7 @@ if [ -e "$1" ] ; then # path (file or directory)
 			echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1")"
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ '--help' = "$1" ] ; then # help
 	cat << '_EOF_'
 MPVCLIP - run MPV with the start and end of playback set to a pattern.
@@ -296,7 +310,7 @@ instead of seconds.
 l ab-loop ; print-text "ab-loop=${=time-pos}"
 _EOF_
 elif [ '--version' = "$1" ] ; then # version
-	echo "mpvclip 0.6" # update01
+	echo "mpvclip 0.7" # update01
 elif [ '--lpat' = "$1" ] ; then # timestamp format conversion to clip pattern: HH:MM:SS[.n]-HH:MM:SS[.n]
 	swreq
 	if [ -n "$2" ] ; then
@@ -356,14 +370,14 @@ elif [ '--ll' = "$1" ] ; then # playlist file
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ '--ll' = "$2" ] ; then # profile + playlist file
 	swreq
 	if [ "$#" -eq 3 ] && [ -r "$3" ] ; then
 		if file -b --mime-type "$3" | grep -q 'text/plain' ; then # plain text file
 			if grep -q '[^[:space:]]' < "$3" ; then # not empty
 				loopfile="$3"
-				core_ll --profile\="$1"
+				core_ll --profile="$1"
 			else
 				echo >&2 "$(scr1pt): WARNING: Empty file: $3"
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
@@ -377,7 +391,7 @@ elif [ '--ll' = "$2" ] ; then # profile + playlist file
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ -e "$2" ] && echo "$1" | grep -oqE \^"${lpat}"\$ ; then # clip pattern + path (pattern in filename ignored)
 	swreq
 	ab="$1"
@@ -397,8 +411,12 @@ elif [ -e "$2" ] && echo "$1" | grep -oqE \^"${lpat}"\$ ; then # clip pattern + 
 				unset f1 # will allow file instead of directory into the core function
 				f1="$f1b" # this file
 				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if [ "$iter" -ne 1 ] ; then
-					uquit # no quit function in first iteration
+				if (( iter>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iter=$(( iter - 1 ))
+						continue
+					fi
 				fi
 				core
 			done
@@ -407,13 +425,17 @@ elif [ -e "$2" ] && echo "$1" | grep -oqE \^"${lpat}"\$ ; then # clip pattern + 
 			fi
 		elif [ -f "$f1" ] ; then
 			iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-			if [ "$iter" -ne 1 ] ; then
-				uquit # no quit function in first iteration
+			if (( iter>1 )) ; then
+				uquit # not before the first file
+				if [ "$?" -eq 1 ] ; then # skip the file
+					iter=$(( iter - 1 ))
+					continue
+				fi
 			fi
 			core
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ ! -e "$1" ] && [ -e "$2" ] ; then # profile + path
 	swreq
 	profile="$1"
@@ -435,10 +457,14 @@ elif [ ! -e "$1" ] && [ -e "$2" ] ; then # profile + path
 						unset f1 # will allow file instead of directory into the core function
 						f1="$f1b" # this file
 						iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-						if [ "$iter" -ne 1 ] ; then
-							uquit # no quit function in first iteration
+						if (( iter>1 )) ; then
+							uquit # not before the first file
+							if [ "$?" -eq 1 ] ; then # skip the file
+								iter=$(( iter - 1 ))
+								break
+							fi
 						fi
-						core --profile\="$profile"
+						core --profile="$profile"
 					done
 				else
 					echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1b")"
@@ -452,16 +478,20 @@ elif [ ! -e "$1" ] && [ -e "$2" ] ; then # profile + path
 				aa=$(lpat_aa)
 				bb=$(lpat_bb)
 				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if [ "$iter" -ne 1 ] ; then
-					uquit # no quit function in first iteration
+				if (( iter>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iter=$(( iter - 1 ))
+						break
+					fi
 				fi
-				core --profile\="$profile"
+				core --profile="$profile"
 			done
 		else
 			echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1")"
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ -e "$3" ] && echo "$2" | grep -oqE \^"${lpat}"\$ || echo "$1" | grep -oqE \^"${lpat}"\$ && [ ! -e "$2" ] ; then # profile + clip pattern + path (update01)
 	swreq
 	for arg in "$1" "$2" ; do # update01
@@ -494,26 +524,34 @@ elif [ -e "$3" ] && echo "$2" | grep -oqE \^"${lpat}"\$ || echo "$1" | grep -oqE
 				unset f1 # will allow file instead of directory into the core function
 				f1="$f1b" # this file
 				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if [ "$iter" -ne 1 ] ; then
-					uquit # no quit function in first iteration
+				if (( iter>1 )) ; then
+					uquit # not before the first file
+					if [ "$?" -eq 1 ] ; then # skip the file
+						iter=$(( iter - 1 ))
+						continue
+					fi
 				fi
-				core --profile\="$profile"
+				core --profile="$profile"
 			done
 			if [ "$gstar" -eq 1 ] ; then
 				shopt -qu globstar
 			fi
 		elif [ -f "$f1" ] ; then
 			iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-			if [ "$iter" -ne 1 ] ; then
-				uquit # no quit function in first iteration
+			if (( iter>1 )) ; then
+				uquit # not before the first file
+				if [ "$?" -eq 1 ] ; then # skip the file
+					iter=$(( iter - 1 ))
+					continue
+				fi
 			fi
-			core --profile\="$profile"
+			core --profile="$profile"
 		else # update01
 			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} successful iterations - exiting..."
+	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ "$#" -eq 0 ] ; then
 	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<clip pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}"
 else
