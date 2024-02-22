@@ -142,25 +142,29 @@ if [ -e "$1" ] ; then # path (file or directory)
 				gstar=0
 			fi
 			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/**/*.* ; do
-				if basename "$f1b" | grep -oqE "${lpat}" ; then
-					for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each clip pattern in filename
-						aa=$(lpat_aa)
-						bb=$(lpat_bb)
-						unset f1 # will allow file instead of directory into the core function
-						f1="$f1b" # this file
-						iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-						if (( iter>1 )) ; then
-							uquit # not before the first file
-							if [ "$?" -eq 1 ] ; then # skip the file
-								iter=$(( iter - 1 ))
-								break
+			for f1b in "${f1a}"/** ; do
+				if [ -f "$f1b" ] ; then
+					if basename "$f1b" | grep -oqE "${lpat}" ; then
+						for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each clip pattern in filename
+							aa=$(lpat_aa)
+							bb=$(lpat_bb)
+							unset f1 # will allow file instead of directory into the core function
+							f1="$f1b" # this file
+							iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
+							if (( iter>1 )) ; then
+								uquit # not before the first file
+								if [ "$?" -eq 1 ] ; then # skip the file
+									iter=$(( iter - 1 ))
+									break
+								fi
 							fi
-						fi
-						core
-					done
+							core
+						done
+					else
+						echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1b")"
+					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1b")"
+					continue
 				fi
 			done
 			if [ "$gstar" -eq 1 ] ; then
@@ -310,7 +314,7 @@ instead of seconds.
 l ab-loop ; print-text "ab-loop=${=time-pos}"
 _EOF_
 elif [ '--version' = "$1" ] ; then # version
-	echo "mpvclip 0.7" # update01
+	echo "mpvclip 0.8" # update01
 elif [ '--lpat' = "$1" ] ; then # timestamp format conversion to clip pattern: HH:MM:SS[.n]-HH:MM:SS[.n]
 	swreq
 	if [ -n "$2" ] ; then
@@ -407,18 +411,22 @@ elif [ -e "$2" ] && echo "$1" | grep -oqE \^"${lpat}"\$ ; then # clip pattern + 
 				gstar=0
 			fi
 			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/**/*.* ; do
-				unset f1 # will allow file instead of directory into the core function
-				f1="$f1b" # this file
-				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if (( iter>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iter=$(( iter - 1 ))
-						continue
+			for f1b in "${f1a}"/** ; do
+				if [ -f "$f1b" ] ; then
+					unset f1 # will allow file instead of directory into the core function
+					f1="$f1b" # this file
+					iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
+					if (( iter>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iter=$(( iter - 1 ))
+							continue
+						fi
 					fi
+					core
+				else
+					continue
 				fi
-				core
 			done
 			if [ "$gstar" -eq 1 ] ; then
 				shopt -qu globstar
@@ -449,25 +457,29 @@ elif [ ! -e "$1" ] && [ -e "$2" ] ; then # profile + path
 				gstar=0
 			fi
 			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/**/*.* ; do
-				if basename "$f1b" | grep -oqE "${lpat}" ; then
-					for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each clip pattern in filename
-						aa=$(lpat_aa)
-						bb=$(lpat_bb)
-						unset f1 # will allow file instead of directory into the core function
-						f1="$f1b" # this file
-						iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-						if (( iter>1 )) ; then
-							uquit # not before the first file
-							if [ "$?" -eq 1 ] ; then # skip the file
-								iter=$(( iter - 1 ))
-								break
+			for f1b in "${f1a}"/** ; do
+				if [ -f "$f1b" ] ; then
+					if basename "$f1b" | grep -oqE "${lpat}" ; then
+						for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each clip pattern in filename
+							aa=$(lpat_aa)
+							bb=$(lpat_bb)
+							unset f1 # will allow file instead of directory into the core function
+							f1="$f1b" # this file
+							iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
+							if (( iter>1 )) ; then
+								uquit # not before the first file
+								if [ "$?" -eq 1 ] ; then # skip the file
+									iter=$(( iter - 1 ))
+									break
+								fi
 							fi
-						fi
-						core --profile="$profile"
-					done
+							core --profile="$profile"
+						done
+					else
+						echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1b")"
+					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No clip pattern - skipping: $(basename "$f1b")"
+					continue
 				fi
 			done
 			if [ "$gstar" -eq 1 ] ; then
@@ -520,18 +532,22 @@ elif [ -e "$3" ] && echo "$2" | grep -oqE \^"${lpat}"\$ || echo "$1" | grep -oqE
 				gstar=0
 			fi
 			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/**/*.* ; do
-				unset f1 # will allow file instead of directory into the core function
-				f1="$f1b" # this file
-				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if (( iter>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iter=$(( iter - 1 ))
-						continue
+			for f1b in "${f1a}"/** ; do
+				if [ -f "$f1b" ] ; then
+					unset f1 # will allow file instead of directory into the core function
+					f1="$f1b" # this file
+					iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
+					if (( iter>1 )) ; then
+						uquit # not before the first file
+						if [ "$?" -eq 1 ] ; then # skip the file
+							iter=$(( iter - 1 ))
+							continue
+						fi
 					fi
+					core --profile="$profile"
+				else
+					continue
 				fi
-				core --profile="$profile"
 			done
 			if [ "$gstar" -eq 1 ] ; then
 				shopt -qu globstar
