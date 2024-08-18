@@ -3,8 +3,8 @@ MPVLOOP and MPVCLIP are bash scripts that execute MPV with playback options for 
 
 ## Usage
 ```
-mpvloop {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}
-mpvclip {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}
+mpvloop {[<mpv profile,...>] [<loop pattern>... | -l] [-s] [path/]filename | --lpat <timestamp range>... | --help | --version}
+mpvclip {[<mpv profile,...>] [<clip pattern>... | -l] [-s] [path/]filename | --lpat <timestamp range>... | --help | --version}
 ```
 
 ## Description
@@ -62,7 +62,7 @@ mpv --start=1 --end=2 foo-a1b2-a10b20.mp4
 </details>
 
 ## Options
-MPV profile names and a single loop pattern without flags can be entered on the command line. Options also include playlists and time format conversions. Descriptions and examples in the Wiki.
+MPV profile names and any number of loop patterns without flags can be entered on the command line. Options also include playlists and time format conversions. Descriptions and examples in the Wiki.
 
 ## Dependencies
 - Awk
@@ -77,8 +77,8 @@ MPVLOOPF and MPVCLIPF are bash scripts that run MPVLOOP and MPVCLIP to play tagg
 
 ## Usage
 ```
-mpvloopf {[<mpv profile,...>] <tag> [-p <path pattern> | --ll] [path/]filename | --help | --version}
-mpvclipf {[<mpv profile,...>] <tag> [-p <path pattern> | --ll] [path/]filename | --help | --version}
+mpvloopf {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename | --help | --version}
+mpvclipf {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename | --help | --version}
 ```
 
 ## Description
@@ -136,7 +136,7 @@ MPVIVAL is a bash script that runs MPV with the start and length of playback set
 
 ## Usage
 ```
-mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] [path/]filename | --help | --version}
+mpvival {[<mpv profile,...>] <clip duration> <interval scale> [-l|-s|-t] [path/]filename | --help | --version}
 ```
 
 ## Description
