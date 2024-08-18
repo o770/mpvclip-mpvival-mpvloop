@@ -6,25 +6,35 @@
 # This small work is dedicated to all those helping to protect endangered species.
 # 2024 Looper Guará
 
-_mpvclip=mpvclip # as the shell should invoke mpvclip
-lpat="[aA][0-9]+[bB][0-9]+" # clip pattern is a regex to match A number B number
-q=1 # time in seconds to press any key and quit the script
-d=, # playlist fields delimiter
+# How the shell should call MPVCLIP
+_mpvclip=mpvclip
 
-# this script
+# Regular expression to match a clip pattern
+# lowercase letters only: a[0-9]+b[0-9]+
+# uppercase letters only: A[0-9]+B[0-9]+
+# case insensitive: [aA][0-9]+[bB][0-9]+
+lpat="[aA][0-9]+[bB][0-9]+"
+
+# Time in seconds to press any key and exit the script
+# half a second: 0.5
+q=1
+
+# Field delimiter in a playlist
+d=,
+
 scr1pt() {
 	basename "$0"
 }
 
 if [ "$#" -eq 0 ] ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <tag> [-p <pattern> | --ll] [path/]filename | --help | --version}"
+	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename | --help | --version}"
 	exit
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVCLIPF - run MPVCLIP to play tagged clips
 
 	SYNOPSIS
-mpvclipf {[<mpv profile,...>] <tag> [-p <pattern> | --ll] [path/]filename |
+mpvclipf {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename |
 	 --help | --version}
 
 	DESCRIPTION
@@ -60,7 +70,7 @@ Compares a shell pattern with the concatenation of a directory name and the base
 name of the file. The test applies to the full path.
 
 	For command line:
-mpvclipf Earth -p "*Saturn*" path/to
+mpvclipf Earth -p Saturn path/to
 	How MPVCLIP is run:
 mpvclip a12b34 path/to/Saturn/foo-a12b34Earth-a23b45Mars.mp4 ; \
 mpvclip a12b34 path/to/foo-a12b34Earth-a23b45Mars-a34b56Saturn.mp4
@@ -73,14 +83,13 @@ mpvclipf gpu-hq Pluto path/to
 	How MPVCLIP is run:
 mpvclip a1b2 --profile=gpu-hq path/to/foo-a1b2Pluto.mp4
 
-	--ll file
+	-l file
 Plaintext playlist with commas to separate a single file followed by any number
 of associated patterns on each line. A tagged clip plays if it matches the
 specified tag. Patterns in file names, if any, are ignored.
 A line which does not satisfy all of the conditions below is also ignored:
 - There is comma.
 - There is clip pattern.
-- There are no blank spaces.
 - The first field is a regular file.
 
 	For playlist file foo.txt which contains the following two lines:
@@ -89,6 +98,10 @@ foo2.mp4,a0b123Neptune
 
 	How MPVCLIP is run:
 mpvclip a1b2 path/to/foo1.mp4 ; mpvclip a0b123 foo2.mp4
+
+	-s file
+Shuffle the file list. With -l, options must be combined in any order, for
+example: -ls.
 
 	--version
 Display version information.
@@ -99,7 +112,7 @@ Print help summary.
 	DEPENDENCIES
 file (command)
 GNU Bourne-Again SHell (Bash)
-GNU Coreutils (basename, cut, echo, tr)
+GNU Coreutils
 GNU Findutils (find)
 GNU Grep
 mpv
@@ -112,11 +125,10 @@ provided without warranty of any kind.
 _EOF_
 	exit
 elif [ '--version' = "$1" ] ; then
-	echo "mpvclipf 0.3"
+	echo "mpvclipf 1.0"
 	exit
 fi
 
-# required software
 swreq() {
 	type "$_mpvclip" >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPVCLIP not found - aborting."; exit 1; }
 	type find >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: FIND not found - aborting."; exit 1; }
@@ -125,44 +137,51 @@ swreq() {
 	type mpv >/dev/null 2>&1 || { echo >&2 "${0}: WARNING: MPV not found - aborting."; exit 1; }
 }
 
-# wait and confirm to quit the script
 uquit() {
 	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
-	read -rst "$q" -N 1
-	if [ "$?" -eq 0 ] ; then
+	if read -rst "$q" -N 1 ; then
 		echo "$(scr1pt): File: $f1"
 		echo "$(scr1pt): Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
-				'EXIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) iterations completed - exiting..." ; exit;;
-				'SKIP file' ) return 1;;
-				'Cancel' ) break;;
+				'EXIT the script' )
+					echo "$(scr1pt): $((iterout - 1)) iterations completed - exiting..."
+					exit;;
+				'SKIP file' )
+					return 1;;
+				'Cancel' )
+					break;;
 			esac
 		done 2>&1
 	fi
+	echo
 }
 
-# playlist function where lines are parsed
 core_ll() {
-	for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
-		f1="$(echo "$line" | cut -d "$d" -f 1)" # file
-		if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
+	if [ -v shuffle ] ; then
+		readarray -t iall1 < <(shuf "$loopfile")
+	else
+		readarray -t iall1 < <(cat "$loopfile")
+	fi
+	for line in "${iall1[@]}" ; do
+		f1="$(cut -d "$d" -f 1 <<< "$line")"
+		if [ ! -f "$f1" ] || grep -qv "$d" <<< "$line" ; then
 			if [ ${#line} -gt 90 ] ; then
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
 				continue
 			else
 				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
 				continue
 			fi
 		fi
-		for ab2 in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each clip pattern on each line
-			if echo "$ab2" | grep -qoE \^"${lpat}${ltag}"\$ ; then
-				ab=$(echo "$ab2" | grep -oE "$lpat")
-				iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-				if (( iterout>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iterout=$(( iterout - 1 ))
+		for ab2 in $(cut -s -d "$d" -f 1 --complement <<< "$line" | tr "$d" '\t') ; do
+			if grep -qoE ^"${lpat}${ltag}"\$ <<< "$ab2" ; then
+				ab=$(grep -oE "$lpat" <<< "$ab2")
+				iterout=$((iterout + 1))
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
 						continue 2
 					fi
 				fi
@@ -170,7 +189,6 @@ core_ll() {
 				echo "$(scr1pt): Starting ${_mpvclip}..."
 				"$_mpvclip" "$@" "$ab" "$f1"
 			else
-				echo >&2 "$(scr1pt): WARNING: Invalid clip pattern - skipping: $ab2"
 				continue
 			fi
 		done
@@ -179,12 +197,15 @@ core_ll() {
 
 if [ ! -e "$1" ] ; then
 	swreq
-	if [ '--ll' = "$2" ] ; then # clip tag + playlist file
+	if [ '-l' = "$2" ] || [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
 		if [ "$#" -eq 3 ] && [ -r "$3" ] ; then
-			if file -b --mime-type "$3" | grep -q 'text/plain' ; then # plain text file
-				if grep -q '[^[:space:]]' < "$3" ; then # not empty
+			if file -b --mime-type "$3" | grep -q 'text/plain' ; then
+				if grep -q '[^[:space:]]' < "$3" ; then
 					ltag="$1"
 					loopfile="$3"
+					if [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
+						shuffle=y
+					fi
 					core_ll
 				else
 					echo >&2 "$(scr1pt): WARNING: Empty file: $3"
@@ -195,84 +216,102 @@ if [ ! -e "$1" ] ; then
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
 			fi
 		else
-			shift 2 # only input path
+			shift 2
 			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-	elif [ '-p' = "$2" ] && [ -e "$4" ] ; then # clip tag + path pattern + pathname
-		ltag="$1" # define clip tag
-		ppat="$3" # define path pattern
-		shift 3 # input directories only
-		for f3 in "$@" ; do
-			if [ -d "$f3" ] ; then
-				readarray -t f2 <<< "$(find "$f3" -path "$ppat" -regex '.*'"${lpat}${ltag}"'.*' -type f)" # whitespace won't split filenames in forloop
-				if [ -n "$f2" ] ; then # test find for a single valid result
-					for f1 in "${f2[@]}" ; do
-						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if (( iterout>1 )) ; then
-									uquit # not before the first file
-									if [ "$?" -eq 1 ] ; then # skip the file
-										iterout=$(( iterout - 1 ))
-										continue 2
-									fi
-								fi
-								echo "$(scr1pt): Clip tag: $ltag"
-								echo "$(scr1pt): Starting ${_mpvclip}..."
-								"$_mpvclip" "$ab" "$f1"
-							done
-						fi
-					done
-				else
-					echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
-				fi
-			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-					f1="$f3"
-					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if (( iterout>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iterout=$(( iterout - 1 ))
-							break
-						fi
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
+	elif [ '-p' = "$2" ] && [ -e "$4" ] || [ '-s' = "$4" ] ; then
+		ltag="$1"
+		ppat="$3"
+		if [ '-s' = "$4" ] ; then
+			shuffle=y
+			shift 4
+		else
+			shift 3
+		fi
+		iall3+=("$@")
+		if [ -v iall3 ] ; then
+			for f2 in "${iall3[@]}" ; do
+				if [ -d "$f2" ] ; then
+					readarray -t f3 < <(find "$f2" -path "*${ppat}*" -regex '.*'"${lpat}${ltag}"'.*' -type f)
+					if [ -n "${f3[0]}" ] ; then
+						iall2+=("${f3[@]}")
+					else
+						continue
 					fi
-					echo "$(scr1pt): Clip tag: $ltag"
-					echo "$(scr1pt): Starting ${_mpvclip}..."
-					"$_mpvclip" "$ab" "$f1"
-				done
+				elif [ -f "$f2" ] ; then
+					if basename "$f2" | grep -qE "${lpat}${ltag}" && realpath -q "$f2" | grep -qF "$ppat" ; then
+						iall2+=("$f2")
+					else
+						continue
+					fi
+				else
+					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				fi
+			done
+			if [ -v shuffle ] ; then
+				readarray -t iall1 < <(shuf -e "${iall2[@]}")
 			else
-				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
+				iall1+=("${iall2[@]}")
 			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			exit 1
+		fi
+		for f1 in "${iall1[@]}" ; do
+			for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do
+				iterout=$((iterout + 1))
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						continue 2
+					fi
+				fi
+				echo "$(scr1pt): Clip tag: $ltag"
+				echo "$(scr1pt): Starting ${_mpvclip}..."
+				"$_mpvclip" "$ab" "$f1"
+			done
 		done
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-	elif [ '--ll' = "$3" ] ; then # profile + clip tag + playlist file
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
+	elif [ '-l' = "$3" ] || [ '-ls' = "$3" ] || [ '-sl' = "$3" ] ; then
 		if [ "$#" -eq 4 ] && [ -r "$4" ] ; then
-			if file -b --mime-type "$4" | grep -q 'text/plain' ; then # plain text file
-				if grep -q '[^[:space:]]' < "$4" ; then # not empty
+			if file -b --mime-type "$4" | grep -q 'text/plain' ; then
+				if grep -q '[^[:space:]]' < "$4" ; then
 					for arg in "$1" "$2" ; do
-						iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
+						iterin=$((iterin + 1))
 						if [ -n "$prf" ] ; then
-							ltag="$arg" # define clip tag if MPV profile defined already
-						elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+							ltag="$arg"
+						elif mpv --show-profile="$(cut -d ',' -f 1 <<< "$arg")" | grep -qi 'unknown' ; then
 							if [ "$iterin" -eq 1 ] ; then
-								ltag="$arg" # define clip tag if first iteration and no MPV profile
+								ltag="$arg"
 							else
 								if [ -n "$ltag" ] ; then
 									echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
 									echo "$(scr1pt): Help summary: $(scr1pt) --help"
-									exit 1 # no MPV profile entered
+									exit 1
 								fi
 							fi
 						else
 							if [ -z "$prf" ] ; then
-								prf="$arg" # define MPV profile
+								prf="$arg"
 							fi
 						fi
 					done
 					loopfile="$4"
+					if [ '-ls' = "$3" ] || [ '-sl' = "$3" ] ; then
+						shuffle=y
+					fi
 					core_ll "$prf"
 				else
 					echo >&2 "$(scr1pt): WARNING: Empty file: $4"
@@ -283,191 +322,228 @@ if [ ! -e "$1" ] ; then
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
 			fi
 		else
-			shift 3 # only input path
+			shift 3
 			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-	elif [ '-p' = "$3" ] && [ -e "$5" ] ; then # profile + clip tag + path pattern + pathname
-		ppat="$4" # define path pattern
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
+	elif [ '-p' = "$3" ] && [ -e "$5" ] || [ '-s' = "$5" ] ; then
+		ppat="$4"
 		for arg in "$1" "$2" ; do
-			iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
+			iterin=$((iterin + 1))
 			if [ -n "$prf" ] ; then
-				ltag="$arg" # define clip tag if MPV profile defined already
-			elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+				ltag="$arg"
+			elif mpv --show-profile="$(cut -d ',' -f 1 <<< "$arg")" | grep -qi 'unknown' ; then
 				if [ "$iterin" -eq 1 ] ; then
-					ltag="$arg" # define clip tag if first iteration and no MPV profile
+					ltag="$arg"
 				else
 					if [ -n "$ltag" ] ; then
 						echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
 						echo "$(scr1pt): Help summary: $(scr1pt) --help"
-						exit 1 # no MPV profile entered
+						exit 1
 					fi
 				fi
 			else
 				if [ -z "$prf" ] ; then
-					prf="$arg" # define MPV profile
+					prf="$arg"
 				fi
 			fi
 		done
-		shift 4 # input directories only
-		for f3 in "$@" ; do
-			if [ -d "$f3" ] ; then
-				readarray -t f2 <<< "$(find "$f3" -path "$ppat" -regex '.*'"${lpat}${ltag}"'.*' -type f)" # whitespace won't split filenames in forloop
-				if [ -n "$f2" ] ; then # test find for a single valid result
-					for f1 in "${f2[@]}" ; do
-						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if (( iterout>1 )) ; then
-									uquit # not before the first file
-									if [ "$?" -eq 1 ] ; then # skip the file
-										iterout=$(( iterout - 1 ))
-										continue 2
-									fi
-								fi
-								echo "$(scr1pt): Clip tag: $ltag"
-								echo "$(scr1pt): Starting ${_mpvclip}..."
-								"$_mpvclip" "$prf" "$ab" "$f1"
-							done
-						fi
-					done
-				else
-					echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
-				fi
-			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-					f1="$f3"
-					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if (( iterout>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iterout=$(( iterout - 1 ))
-							break
-						fi
+		if [ '-s' = "$5" ] ; then
+			shuffle=y
+			shift 5
+		else
+			shift 4
+		fi
+		iall3+=("$@")
+		if [ -v iall3 ] ; then
+			for f2 in "${iall3[@]}" ; do
+				if [ -d "$f2" ] ; then
+					readarray -t f3 < <(find "$f2" -path "*${ppat}*" -regex '.*'"${lpat}${ltag}"'.*' -type f)
+					if [ -n "${f3[0]}" ] ; then
+						iall2+=("${f3[@]}")
+					else
+						continue
 					fi
-					echo "$(scr1pt): Clip tag: $ltag"
-					echo "$(scr1pt): Starting ${_mpvclip}..."
-					"$_mpvclip" "$prf" "$ab" "$f1"
-				done
+				elif [ -f "$f2" ] ; then
+					if basename "$f2" | grep -qE "${lpat}${ltag}" && realpath -q "$f2" | grep -qF "$ppat" ; then
+						iall2+=("$f2")
+					else
+						continue
+					fi
+				else
+					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				fi
+			done
+			if [ -v shuffle ] ; then
+				readarray -t iall1 < <(shuf -e "${iall2[@]}")
 			else
-				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
+				iall1+=("${iall2[@]}")
 			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			exit 1
+		fi
+		for f1 in "${iall1[@]}" ; do
+			for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do
+				iterout=$((iterout + 1))
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						continue 2
+					fi
+				fi
+				echo "$(scr1pt): Clip tag: $ltag"
+				echo "$(scr1pt): Starting ${_mpvclip}..."
+				"$_mpvclip" "$prf" "$ab" "$f1"
+			done
 		done
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-	elif [ ! -e "$2" ] && [ -e "$3" ] ; then # profile + clip tag
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
+	elif [ -e "$2" ] || [ '-s' = "$2" ] ; then
+		ltag="$1"
+		if [ '-s' = "$2" ] ; then
+			shuffle=y
+			shift 2
+		else
+			shift
+		fi
+		iall3+=("$@")
+		if [ -v iall3 ] ; then
+			for f2 in "${iall3[@]}" ; do
+				if [ -d "$f2" ] ; then
+					readarray -t f3 < <(find "$f2" -regex '.*'"${lpat}${ltag}"'.*' -type f)
+					if [ -n "${f3[0]}" ] ; then
+						iall2+=("${f3[@]}")
+					else
+						continue
+					fi
+				elif [ -f "$f2" ] ; then
+					if basename "$f2" | grep -qE "${lpat}${ltag}" ; then
+						iall2+=("$f2")
+					else
+						continue
+					fi
+				else
+					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				fi
+			done
+			if [ -v shuffle ] ; then
+				readarray -t iall1 < <(shuf -e "${iall2[@]}")
+			else
+				iall1+=("${iall2[@]}")
+			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			exit 1
+		fi
+		for f1 in "${iall1[@]}" ; do
+			for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do
+				iterout=$((iterout + 1))
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						continue 2
+					fi
+				fi
+				echo "$(scr1pt): Clip tag: $ltag"
+				echo "$(scr1pt): Starting ${_mpvclip}..."
+				"$_mpvclip" "$ab" "$f1"
+			done
+		done
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
+	elif [ ! -e "$2" ] && [ -e "$3" ] || [ '-s' = "$3" ] ; then
 		for arg in "$1" "$2" ; do
-			iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
+			iterin=$((iterin + 1))
 			if [ -n "$prf" ] ; then
-				ltag="$arg" # define clip tag if MPV profile defined already
-			elif mpv --show-profile="$(echo "$arg" | cut -d ',' -f 1)" | grep -qi 'unknown' ; then
+				ltag="$arg"
+			elif mpv --show-profile="$(cut -d ',' -f 1 <<< "$arg")" | grep -qi 'unknown' ; then
 				if [ "$iterin" -eq 1 ] ; then
-					ltag="$arg" # define clip tag if first iteration and no MPV profile
+					ltag="$arg"
 				else
 					if [ -n "$ltag" ] ; then
 						echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
 						echo "$(scr1pt): Help summary: $(scr1pt) --help"
-						exit 1 # no MPV profile entered
+						exit 1
 					fi
 				fi
 			else
 				if [ -z "$prf" ] ; then
-					prf="$arg" # define MPV profile
+					prf="$arg"
 				fi
 			fi
 		done
-		shift 2 # input directories only
-		for f3 in "$@" ; do
-			if [ -d "$f3" ] ; then
-				readarray -t f2 <<< "$(find "$f3" -regex '.*'"${lpat}${ltag}"'.*' -type f)" # whitespace won't split filenames in forloop
-				if [ -n "$f2" ] ; then # test find for a single valid result
-					for f1 in "${f2[@]}" ; do
-						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if (( iterout>1 )) ; then
-									uquit # not before the first file
-									if [ "$?" -eq 1 ] ; then # skip the file
-										iterout=$(( iterout - 1 ))
-										continue 2
-									fi
-								fi
-								echo "$(scr1pt): Clip tag: $ltag"
-								echo "$(scr1pt): Starting ${_mpvclip}..."
-								"$_mpvclip" "$prf" "$ab" "$f1"
-							done
-						fi
-					done
-				else
-					echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
-				fi
-			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-					f1="$f3"
-					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if (( iterout>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iterout=$(( iterout - 1 ))
-							break
-						fi
+		if [ '-s' = "$3" ] ; then
+			shuffle=y
+			shift 3
+		else
+			shift 2
+		fi
+		iall3+=("$@")
+		if [ -v iall3 ] ; then
+			for f2 in "${iall3[@]}" ; do
+				if [ -d "$f2" ] ; then
+					readarray -t f3 < <(find "$f2" -regex '.*'"${lpat}${ltag}"'.*' -type f)
+					if [ -n "${f3[0]}" ] ; then
+						iall2+=("${f3[@]}")
+					else
+						continue
 					fi
-					echo "$(scr1pt): Clip tag: $ltag"
-					echo "$(scr1pt): Starting ${_mpvclip}..."
-					"$_mpvclip" "$prf" "$ab" "$f1"
-				done
-			else
-				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
-			fi
-		done
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-	elif [ -e "$2" ] ; then # clip tag + pathname
-		ltag="$1" # define clip tag
-		shift 1 # input directories only
-		for f3 in "$@" ; do
-			if [ -d "$f3" ] ; then
-				readarray -t f2 <<< "$(find "$f3" -regex '.*'"${lpat}${ltag}"'.*' -type f)" # whitespace won't split filenames in forloop
-				if [ -n "$f2" ] ; then # test find for a single valid result
-					for f1 in "${f2[@]}" ; do
-						if basename "$f1" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-							for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-								iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-								if (( iterout>1 )) ; then
-									uquit # not before the first file
-									if [ "$?" -eq 1 ] ; then # skip the file
-										iterout=$(( iterout - 1 ))
-										continue 2
-									fi
-								fi
-								echo "$(scr1pt): Clip tag: $ltag"
-								echo "$(scr1pt): Starting ${_mpvclip}..."
-								"$_mpvclip" "$ab" "$f1"
-							done
-						fi
-					done
-				else
-					echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
-				fi
-			elif [ -f "$f3" ] && basename "$f3" | grep -qE "${lpat}${ltag}" ; then # tagged pattern in filename
-				for ab in $(basename "$f3" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do # each valid clip pattern in filename
-					f1="$f3"
-					iterout=$(( ${iterout:-0} + 1 )) # forloop iteration counter
-					if (( iterout>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iterout=$(( iterout - 1 ))
-							break
-						fi
+				elif [ -f "$f2" ] ; then
+					if basename "$f2" | grep -qE "${lpat}${ltag}" ; then
+						iall2+=("$f2")
+					else
+						continue
 					fi
-					echo "$(scr1pt): Clip tag: $ltag"
-					echo "$(scr1pt): Starting ${_mpvclip}..."
-					"$_mpvclip" "$ab" "$f1"
-				done
+				else
+					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				fi
+			done
+			if [ -v shuffle ] ; then
+				readarray -t iall1 < <(shuf -e "${iall2[@]}")
 			else
-				echo >&2 "$(scr1pt): WARNING: Tag not found - skipping: $f3"
+				iall1+=("${iall2[@]}")
 			fi
+		else
+			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			exit 1
+		fi
+		for f1 in "${iall1[@]}" ; do
+			for ab in $(basename "$f1" | grep -oE "${lpat}${ltag}" | grep -oE "$lpat") ; do
+				iterout=$((iterout + 1))
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						continue 2
+					fi
+				fi
+				echo "$(scr1pt): Clip tag: $ltag"
+				echo "$(scr1pt): Starting ${_mpvclip}..."
+				"$_mpvclip" "$prf" "$ab" "$f1"
+			done
 		done
-		echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+		if [ -v iterout ] ; then
+			echo "$(scr1pt): $iterout iterations completed - exiting..."
+		else
+			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+		fi
 	else
 		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"

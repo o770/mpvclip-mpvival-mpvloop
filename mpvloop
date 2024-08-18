@@ -6,39 +6,48 @@
 # This small work is dedicated to all those helping to protect endangered species.
 # 2024 Looper Guará
 
-lpat="[aA][0-9]+[bB][0-9]+" # loop pattern is a regex to match A number B number
-sc=0.1 # conversion scale for numbers in loop pattern
-q=1 # time in seconds to press any key and quit the script
-d=, # field delimiter in playlist
+# Regular expression to match a loop pattern
+# lowercase letters only: a[0-9]+b[0-9]+
+# uppercase letters only: A[0-9]+B[0-9]+
+# case insensitive: [aA][0-9]+[bB][0-9]+
+lpat="[aA][0-9]+[bB][0-9]+"
 
-# update01: this script file
+# Scale to convert loop pattern numbers
+# deciseconds: 0.1
+# seconds: 1
+sc=0.1
+
+# Time in seconds to press any key and exit the script
+# half a second: 0.5
+q=1
+
+# Field delimiter in a playlist
+d=,
+
 scr1pt() {
 	basename "$0"
 }
 
-# required software
 swreq() {
 	type awk >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: AWK not found - aborting."; exit 1; }
-	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; } # update01
-	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; } # update01
+	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; }
+	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; }
 	type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
 }
 
-# timestamp conversion to time representation in loop pattern
 lpat_tt() {
-	h=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 1) * 3600 }")
-	m=$(awk "BEGIN { print $(echo "$1" | cut -d ':' -f 2) * 60 }")
-	s=$(echo "$1" | cut -d ':' -f 3)
+	h=$(awk "BEGIN { print $(cut -d ':' -f 1 <<< "$1") * 3600 }")
+	m=$(awk "BEGIN { print $(cut -d ':' -f 2 <<< "$1") * 60 }")
+	s=$(cut -d ':' -f 3 <<< "$1")
 	awk 'BEGIN { printf ("%.0f", ( '"$h"' + '"$m"' + '"$s"' ) / '"$sc"' ) }'
 }
 
-# lpat a and b functions convert time representation in loop patterns for MPV options
 lpat_aa() {
-	echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 1
+	tr -d '{a,A}' <<< "$ab" | tr '{b,B}' '-' | cut -d '-' -f 1
 }
 
 lpat_bb() {
-	echo "$ab" | tr -d '{a,A}' | tr '{b,B}' '-' | cut -d '-' -f 2
+	tr -d '{a,A}' <<< "$ab" | tr '{b,B}' '-' | cut -d '-' -f 2
 }
 
 lpat_a() {
@@ -49,76 +58,82 @@ lpat_b() {
 	awk "BEGIN { print $bb * $sc }"
 }
 
-# wait and confirm to quit the script
 uquit() {
 	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
-	read -rst "$q" -N 1
-	if [ "$?" -eq 0 ] ; then
+	if read -rst "$q" -N 1 ; then
 		echo "$(scr1pt): File: $f1"
 		echo "$(scr1pt): Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
-				'EXIT the script' ) echo "$(scr1pt): $(( iter - 1 )) iterations completed - exiting..." ; exit;;
-				'SKIP file' ) return 1;;
-				'Cancel' ) break;;
+				'EXIT the script' )
+					echo "$(scr1pt): $((iter - 1)) iterations completed - exiting..."
+					exit;;
+				'SKIP file' )
+					return 1;;
+				'Cancel' )
+					break;;
 			esac
 		done 2>&1
 	fi
+	echo
 }
 
-# main function where time points are set with MPV appropriate options
 core() {
-	if [ "$aa" -eq 0 ] && [ "$bb" -eq 0 ] ; then # both time a and b are unset, loop file
-		echo "$(scr1pt): Loop pattern: $(echo "$ab" | grep -oE "$lpat") (file)" # update01: only pattern without a possible tag
-		echo "$(scr1pt): Options: --loop-file=inf" "$@" # print MPV options
+	if [ "$aa" -eq 0 ] && [ "$bb" -eq 0 ] ; then
+		echo "$(scr1pt): Loop pattern: $(grep -oE "$lpat" <<< "$ab") (file)"
+		echo "$(scr1pt): Options: --loop-file=inf" "$@"
 		echo "$(scr1pt): Starting mpv..."
 		mpv --loop-file=inf "$@" "$f1"
 		return
-	elif [ "$aa" -eq 0 ] ; then # a time unset
-		b=$(lpat_b) # b time
-		echo "$(scr1pt): Loop pattern and duration: $(echo "$ab" | grep -oE "$lpat") (${b}s)" # update01: only pattern without a possible tag
-		echo "$(scr1pt): Options: --ab-loop-a=no --ab-loop-b=$b" "$@" # print MPV options
+	elif [ "$aa" -eq 0 ] ; then
+		b=$(lpat_b)
+		echo "$(scr1pt): Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") (${b}s)"
+		echo "$(scr1pt): Options: --ab-loop-a=no --ab-loop-b=$b" "$@"
 		echo "$(scr1pt): Starting mpv..."
 		mpv --ab-loop-a=no --ab-loop-b="$b" "$@" "$f1"
 		return
-	elif [ "$bb" -eq 0 ] ; then # b time unset
-		a=$(lpat_a) # a time
-		echo "$(scr1pt): Loop pattern: $(echo "$ab" | grep -oE "$lpat")" # update01: only pattern without a possible tag
-		echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=no" "$@" # print MPV options
+	elif [ "$bb" -eq 0 ] ; then
+		a=$(lpat_a)
+		echo "$(scr1pt): Loop pattern: $(grep -oE "$lpat" <<< "$ab")"
+		echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=no" "$@"
 		echo "$(scr1pt): Starting mpv..."
 		mpv --start="$a" --ab-loop-a="$a" --ab-loop-b=no "$@" "$f1"
 		return
 	fi
-	a=$(lpat_a) # a time
-	b=$(lpat_b) # b time
-	echo "$(scr1pt): Loop pattern and duration: $(echo "$ab" | grep -oE "$lpat") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)" # update01: only pattern without a possible tag
-	echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=$b" "$@" # print MPV options
+	a=$(lpat_a)
+	b=$(lpat_b)
+	echo "$(scr1pt): Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)"
+	echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=$b" "$@"
 	echo "$(scr1pt): Starting mpv..."
 	mpv --start="$a" --ab-loop-a="$a" --ab-loop-b="$b" "$@" "$f1"
 }
 
-# playlist function where lines are parsed
 core_ll() {
-	for line in $(grep -v '[[:space:]]' "$loopfile" | paste -s) ; do # each line without whitespace
-		f1="$(echo "$line" | cut -d "$d" -f 1)" # file
-		if [ ! -f "$f1" ] || echo "$line" | grep -qv "$d" ; then # skip line without file or delimiter
+	if [ -v shuffle ] ; then
+		readarray -t iall1 < <(shuf "$loopfile")
+	else
+		readarray -t iall1 < <(cat "$loopfile")
+	fi
+	for line in "${iall1[@]}" ; do
+		f1="$(cut -d "$d" -f 1 <<< "$line")"
+		if [ ! -f "$f1" ] || grep -qv "$d" <<< "$line" ; then
 			if [ ${#line} -gt 90 ] ; then
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
+				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
 				continue
 			else
 				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
 				continue
 			fi
 		fi
-		for ab in $(echo "$line" | cut -s -d "$d" -f 1 --complement | tr "$d" '\t') ; do # each loop pattern on each line
-			if echo "$ab" | grep -qE \^"${lpat}" ; then # update01: pattern may be tagged
+		for ab in $(cut -s -d "$d" -f 1 --complement <<< "$line" | tr "$d" '\t') ; do
+			if grep -qE ^"${lpat}" <<< "$ab" ; then
 				aa=$(lpat_aa)
-				bb=$(lpat_bb | grep -oE "[0-9]+") # update01: only deciseconds
-				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if (( iter>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iter=$(( iter - 1 ))
+				bb=$(lpat_bb | grep -oE "[0-9]+")
+				iter=$((iter + 1))
+				if ((iter > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iter=$((iter - 1))
 						break
 					fi
 				fi
@@ -131,54 +146,35 @@ core_ll() {
 	done
 }
 
-if [ -e "$1" ] ; then # path (file or directory)
+if [ -e "$1" ] ; then
 	swreq
-	for f1 in "$@" ; do # input path
-		if [ -d "$f1" ] ; then # directory
-			if ! shopt -q globstar ; then
-				gstar=1 # unset the option later
-				shopt -qs globstar # recursive pathname expansion if an input directory
-			else
-				gstar=0
-			fi
-			f1a="$(realpath "$f1")" # resolved path
+	for f2 in "$@" ; do
+		if [ -d "$f2" ] ; then
+			shopt -qs globstar
+			f1a="$(realpath -q "$f2")"
 			for f1b in "${f1a}"/** ; do
 				if [ -f "$f1b" ] ; then
-					if basename "$f1b" | grep -oqE "${lpat}" ; then
-						for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each loop pattern in filename
-							aa=$(lpat_aa)
-							bb=$(lpat_bb)
-							unset f1 # will allow file instead of directory into the core function
-							f1="$f1b" # this file
-							iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-							if (( iter>1 )) ; then
-								uquit # not before the first file
-								if [ "$?" -eq 1 ] ; then # skip the file
-									iter=$(( iter - 1 ))
-									break
-								fi
-							fi
-							core
-						done
-					else
-						echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1b")"
-					fi
+					iall1+=("$f1b")
 				else
 					continue
 				fi
 			done
-			if [ "$gstar" -eq 1 ] ; then
-				shopt -qu globstar
-			fi
-		elif [ -f "$f1" ] && basename "$f1" | grep -oqE "${lpat}" ; then # file
-			for ab in $(basename "$f1" | grep -oE "${lpat}") ; do # each loop pattern in filename
+		elif [ -f "$f2" ] ; then
+			iall1+=("$f2")
+		else
+			echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+		fi
+	done
+	for f1 in "${iall1[@]}" ; do
+		if basename "$f1" | grep -oqE "${lpat}" ; then
+			for ab in $(basename "$f1" | grep -oE "${lpat}") ; do
 				aa=$(lpat_aa)
 				bb=$(lpat_bb)
-				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if (( iter>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iter=$(( iter - 1 ))
+				iter=$((iter + 1))
+				if ((iter > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iter=$((iter - 1))
 						break
 					fi
 				fi
@@ -189,12 +185,12 @@ if [ -e "$1" ] ; then # path (file or directory)
 		fi
 	done
 	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ '--help' = "$1" ] ; then # help
+elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVLOOP - run MPV with loop options set according to a pattern.
 
 	SYNOPSIS
-mpvloop {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename |
+mpvloop {[<mpv profile,...>] [<loop pattern>... | -l] [-s] [path/]filename |
 	--lpat <timestamp range>... | --help | --version}
 
 	DESCRIPTION
@@ -234,8 +230,8 @@ mpv --start=0.1 --ab-loop-a=0.1 --ab-loop-b=0.2 foo-a1b2-a10b20.mp4 ; \
 mpv --start=1 --ab-loop-a=1 --ab-loop-b=2 foo-a1b2-a10b20.mp4
 
 	OPTIONS
-MPV profile names and a single loop pattern without flags can be entered on the
-command line. Usage is printed if no arguments are given.
+MPV profile names and any number of loop patterns without flags can be entered
+on the command line. Usage is printed if no arguments are given.
 
 	<mpv profile,...>
 Name of the MPV profile to use.
@@ -245,7 +241,7 @@ mpvloop gpu-hq foo-a1b2.mp4
 	How MPV is run:
 mpv --start=0.1 --ab-loop-a=0.1 --ab-loop-b=0.2 --profile=gpu-hq foo-a1b2.mp4
 
-	<loop pattern>
+	<loop pattern>...
 Play files according to this optional pattern. Other patterns in filenames, if
 any, are ignored.
 
@@ -254,13 +250,12 @@ mpvloop a10b20 foo-a1b2.mp4
 	How MPV is run:
 mpv --start=1 --ab-loop-a=1 --ab-loop-b=2 foo-a1b2.mp4
 
-	--ll file
+	-l file
 Plaintext playlist with commas to separate a single file followed by any number
 of associated patterns on each line. Patterns in filenames, if any, are ignored.
 A line which does not satisfy all of the conditions below is also ignored:
 - There is comma.
 - There is loop pattern.
-- There are no blank spaces.
 - The first field is a regular file.
 
 	For playlist file foo.txt which contains the following two lines:
@@ -271,6 +266,10 @@ foo2.mp4,a0b123
 mpv --start=0.1 --ab-loop-a=0.1 --ab-loop-b=0.2 path/to/foo1.mp4 ; \
 mpv --start=12.3 --ab-loop-a=12.3 --ab-loop-b=no path/to/foo1.mp4 ; \
 mpv --ab-loop-a=no --ab-loop-b=12.3 foo2.mp4
+
+	-s
+Shuffle the file list. With -l, options must be combined in any order, for
+example: -ls.
 
 	--lpat <timestamp range>...
 Print loop patterns equivalent to the timestamp ranges entered in any of the
@@ -296,7 +295,7 @@ Print this help summary.
 Awk
 file (command)
 GNU Bourne-Again SHell (Bash)
-GNU Coreutils (basename, cut, echo, paste, realpath, tail, tr, wc)
+GNU Coreutils
 GNU Grep
 mpv
 
@@ -314,37 +313,37 @@ of "{=time-pos}" is used, the playing time will be printed as a timestamp
 instead of seconds.
 l ab-loop ; print-text "ab-loop=${=time-pos}"
 _EOF_
-elif [ '--version' = "$1" ] ; then # version
-	echo "mpvloop 0.8" # update01
-elif [ '--lpat' = "$1" ] ; then # timestamp format conversion to loop pattern: HH:MM:SS[.n]-HH:MM:SS[.n]
+elif [ '--version' = "$1" ] ; then
+	echo "mpvloop 1.0"
+elif [ '--lpat' = "$1" ] ; then
 	swreq
 	if [ -n "$2" ] ; then
-		shift # only input timestamps
+		shift
 		for tt in "$@" ; do
-			if echo "$tt" | grep -qP '^[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?-[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?$' ; then
-				ta=$(echo "$tt" | cut -d '-' -f 1)
-				tb=$(echo "$tt" | cut -d '-' -f 2)
+			if grep -qP '^[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?-[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?$' <<< "$tt" ; then
+				ta=$(cut -d '-' -f 1 <<< "$tt")
+				tb=$(cut -d '-' -f 2 <<< "$tt")
 				lpat_ab="a$(lpat_tt "$ta")b$(lpat_tt "$tb")"
 				if [ ${#lpat_ab} -lt 8 ] ; then
-					echo -e "${lpat_ab}\t\t(${tt})"
+					printf "%s\\t\\t%s\\n" "$lpat_ab" "(${tt})"
 				else
-					echo -e "${lpat_ab}\t(${tt})"
+					printf "%s\\t%s\\n" "$lpat_ab" "(${tt})"
 				fi
-			elif echo "$tt" | grep -qP '^[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?-$' ; then # HH:MM:SS[.n]-
-				ta=$(echo "$tt" | cut -d '-' -f 1)
+			elif grep -qP '^[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?-$' <<< "$tt" ; then
+				ta=$(cut -d '-' -f 1 <<< "$tt")
 				lpat_ab="a$(lpat_tt "$ta")b0"
 				if [ ${#lpat_ab} -lt 8 ] ; then
-					echo -e "${lpat_ab}\t\t(${tt})"
+					printf "%s\\t\\t%s\\n" "$lpat_ab" "(${tt})"
 				else
-					echo -e "${lpat_ab}\t(${tt})"
+					printf "%s\\t%s\\n" "$lpat_ab" "(${tt})"
 				fi
-			elif echo "$tt" | grep -qP '^-[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?$' ; then # -HH:MM:SS[.n]
-				tb=$(echo "$tt" | cut -d '-' -f 2)
+			elif grep -qP '^-[0-9][0-9]:[0-5][0-9]:[0-5][0-9](?:\.[0-9])?$' <<< "$tt" ; then
+				tb=$(cut -d '-' -f 2 <<< "$tt")
 				lpat_ab="a0b$(lpat_tt "$tb")"
 				if [ ${#lpat_ab} -lt 8 ] ; then
-					echo -e "${lpat_ab}\t\t(${tt})"
+					printf "%s\\t\\t%s\\n" "$lpat_ab" "(${tt})"
 				else
-					echo -e "${lpat_ab}\t(${tt})"
+					printf "%s\\t%s\\n" "$lpat_ab" "(${tt})"
 				fi
 			else
 				echo >&2 "$(scr1pt): WARNING: Invalid timestamp format - skipping: $tt"
@@ -353,12 +352,16 @@ elif [ '--lpat' = "$1" ] ; then # timestamp format conversion to loop pattern: H
 	else
 		echo "$(scr1pt): Usage: $(scr1pt) --lpat <HH:MM:SS[.n]-HH:MM:SS[.n] | HH:MM:SS[.n]- | -HH:MM:SS[.n]>..."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+
 	fi
-elif [ '--ll' = "$1" ] ; then # looplist file
+elif [ '-l' = "$1" ] || [ '-ls' = "$1" ] || [ '-sl' = "$1" ] ; then
 	swreq
 	if [ "$#" -eq 2 ] && [ -r "$2" ] ; then
-		if file -b --mime-type "$2" | grep -q 'text/plain' ; then # plain text file
-			if grep -q '[^[:space:]]' < "$2" ; then # not empty
+		if file -b --mime-type "$2" | grep -q 'text/plain' ; then
+			if grep -q '[^[:space:]]' < "$2" ; then
+				if [ '-ls' = "$1" ] || [ '-sl' = "$1" ] ; then
+					shuffle=y
+				fi
 				loopfile="$2"
 				core_ll
 			else
@@ -370,16 +373,19 @@ elif [ '--ll' = "$1" ] ; then # looplist file
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
 	else
-		shift # only input path
+		shift
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
 	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ '--ll' = "$2" ] ; then # profile + looplist file
+elif [ '-l' = "$2" ] || [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
 	swreq
 	if [ "$#" -eq 3 ] && [ -r "$3" ] ; then
-		if file -b --mime-type "$3" | grep -q 'text/plain' ; then # plain text file
-			if grep -q '[^[:space:]]' < "$3" ; then # not empty
+		if file -b --mime-type "$3" | grep -q 'text/plain' ; then
+			if grep -q '[^[:space:]]' < "$3" ; then
+				if [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
+					shuffle=y
+				fi
 				loopfile="$3"
 				core_ll --profile="$1"
 			else
@@ -391,185 +397,105 @@ elif [ '--ll' = "$2" ] ; then # profile + looplist file
 			echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		fi
 	else
-		shift 2 # only input path
+		shift 2
 		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
 	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ -e "$2" ] && echo "$1" | grep -oqE \^"${lpat}"\$ ; then # loop pattern + path (pattern in filename ignored)
+elif grep -oqE ^"${lpat}"\$ <<< "$2" || grep -oqE ^"${lpat}"\$ <<< "$1" || [ -e "$2" ] ; then
 	swreq
-	ab="$1"
-	aa=$(lpat_aa)
-	bb=$(lpat_bb)
-	shift # only input path
-	for f1 in "$@" ; do # input path
-		if [ -d "$f1" ] ; then # directory
-			if ! shopt -q globstar ; then
-				gstar=1 # unset the option later
-				shopt -qs globstar # recursive pathname expansion if an input directory
+	for arg in "$@" ; do
+		iterin=$((iterin + 1))
+		if grep -oqE ^"${lpat}"\$ <<< "$arg" ; then
+			aball+=("$arg")
+		elif [ -e "$arg" ] ; then
+			shift $((iterin - 1))
+			iall3+=("$@")
+			break
+		elif [ '-s' = "$arg" ] ; then
+			shuffle=y
+		else
+			if [ ! -v prf ] ; then
+				prf="$arg"
 			else
-				gstar=0
+				echo >&2 "$(scr1pt): WARNING: MPV profile already set to ${prf@Q} - skipping: $arg"
 			fi
-			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/** ; do
-				if [ -f "$f1b" ] ; then
-					unset f1 # will allow file instead of directory into the core function
-					f1="$f1b" # this file
-					iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-					if (( iter>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iter=$(( iter - 1 ))
-							continue
-						fi
-					fi
-					core
-				else
-					continue
-				fi
-			done
-			if [ "$gstar" -eq 1 ] ; then
-				shopt -qu globstar
-			fi
-		elif [ -f "$f1" ] ; then
-			iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-			if (( iter>1 )) ; then
-				uquit # not before the first file
-				if [ "$?" -eq 1 ] ; then # skip the file
-					iter=$(( iter - 1 ))
-					continue
-				fi
-			fi
-			core
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ ! -e "$1" ] && [ -e "$2" ] ; then # profile + path
-	swreq
-	profile="$1"
-	shift # only input path
-	for f1 in "$@" ; do # input path
-		if [ -d "$f1" ] ; then # directory
-			if ! shopt -q globstar ; then
-				gstar=1 # unset the option later
-				shopt -qs globstar # recursive pathname expansion if an input directory
-			else
-				gstar=0
-			fi
-			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/** ; do
-				if [ -f "$f1b" ] ; then
-					if basename "$f1b" | grep -oqE "${lpat}" ; then
-						for ab in $(basename "$f1b" | grep -oE "${lpat}") ; do # each loop pattern in filename
-							aa=$(lpat_aa)
-							bb=$(lpat_bb)
-							unset f1 # will allow file instead of directory into the core function
-							f1="$f1b" # this file
-							iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-							if (( iter>1 )) ; then
-								uquit # not before the first file
-								if [ "$?" -eq 1 ] ; then # skip the file
-									iter=$(( iter - 1 ))
-									break
-								fi
-							fi
-							core --profile="$profile"
-						done
+	unset iterin
+	if [ -v iall3 ] ; then
+		for f2 in "${iall3[@]}" ; do
+			if [ -d "$f2" ] ; then
+				shopt -qs globstar
+				f1a="$(realpath -q "$f2")"
+				for f1b in "${f1a}"/** ; do
+					if [ -f "$f1b" ] ; then
+						iall2+=("$f1b")
 					else
-						echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1b")"
+						continue
 					fi
-				else
-					continue
-				fi
-			done
-			if [ "$gstar" -eq 1 ] ; then
-				shopt -qu globstar
-			fi
-		elif [ -f "$f1" ] && basename "$f1" | grep -oqE "${lpat}" ; then # file
-			for ab in $(basename "$f1" | grep -oE "${lpat}") ; do # each loop pattern in filename
-				aa=$(lpat_aa)
-				bb=$(lpat_bb)
-				iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-				if (( iter>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iter=$(( iter - 1 ))
-						break
-					fi
-				fi
-				core --profile="$profile"
-			done
-		else
-			echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1")"
-		fi
-	done
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ -e "$3" ] && echo "$2" | grep -oqE \^"${lpat}"\$ || echo "$1" | grep -oqE \^"${lpat}"\$ && [ ! -e "$2" ] ; then # profile + clip pattern + path (update01)
-	swreq
-	for arg in "$1" "$2" ; do # update01
-		iterin=$(( ${iterin:-0} + 1 )) # options iteration counter
-		if [ -n "$profile" ] ; then
-			ab="$arg" # define loop pattern if MPV profile defined already
-		elif echo "$arg" | grep -oqE \^"${lpat}"\$ ; then
-			if [ "$iterin" -eq 1 ] ; then
-				ab="$arg" # define loop pattern if first iteration and no MPV profile
-			fi
-		else
-			if [ -z "$profile" ] ; then
-				profile="$arg" # define MPV profile
-			fi
-		fi
-	done
-	aa=$(lpat_aa)
-	bb=$(lpat_bb)
-	shift 2 # only input path
-	for f1 in "$@" ; do # input path
-		if [ -d "$f1" ] ; then # directory
-			if ! shopt -q globstar ; then
-				gstar=1 # unset the option later
-				shopt -qs globstar # recursive pathname expansion if an input directory
+				done
+			elif [ -f "$f2" ] ; then
+				iall2+=("$f2")
 			else
-				gstar=0
+				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
 			fi
-			f1a="$(realpath "$f1")" # resolved path
-			for f1b in "${f1a}"/** ; do
-				if [ -f "$f1b" ] ; then
-					unset f1 # will allow file instead of directory into the core function
-					f1="$f1b" # this file
-					iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-					if (( iter>1 )) ; then
-						uquit # not before the first file
-						if [ "$?" -eq 1 ] ; then # skip the file
-							iter=$(( iter - 1 ))
-							continue
+		done
+		if [ -v shuffle ] ; then
+			readarray -t iall1 < <(shuf -e "${iall2[@]}")
+		else
+			iall1+=("${iall2[@]}")
+		fi
+		for f1 in "${iall1[@]}" ; do
+			if [ -v aball ] ; then
+				for ab in "${aball[@]}" ; do
+					aa=$(lpat_aa)
+					bb=$(lpat_bb)
+					iter=$((iter + 1))
+					if ((iter > 1)) ; then
+						uquit
+						if [ "$?" -eq 1 ] ; then
+							iter=$((iter - 1))
+							break
 						fi
 					fi
-					core --profile="$profile"
+					if [ -v prf ] ; then
+						core --profile="$prf"
+					else
+						core
+					fi
+				done
+			else
+				if basename "$f1" | grep -oqE "${lpat}" ; then
+					for ab in $(basename "$f1" | grep -oE "${lpat}") ; do
+						aa=$(lpat_aa)
+						bb=$(lpat_bb)
+						iter=$((iter + 1))
+						if ((iter > 1)) ; then
+							uquit
+							if [ "$?" -eq 1 ] ; then
+								iter=$((iter - 1))
+								break
+							fi
+						fi
+						if [ -v prf ] ; then
+							core --profile="$prf"
+						else
+							core
+						fi
+					done
 				else
-					continue
-				fi
-			done
-			if [ "$gstar" -eq 1 ] ; then
-				shopt -qu globstar
-			fi
-		elif [ -f "$f1" ] ; then
-			iter=$(( ${iter:-0} + 1 )) # forloop iteration counter
-			if (( iter>1 )) ; then
-				uquit # not before the first file
-				if [ "$?" -eq 1 ] ; then # skip the file
-					iter=$(( iter - 1 ))
-					continue
+					echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1")"
 				fi
 			fi
-			core --profile="$profile"
-		else # update01
-			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
-		fi
-	done
+		done
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	fi
 	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
 elif [ "$#" -eq 0 ] ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern> | --ll] [path/]filename | --lpat <timestamp range>... | --help | --version}"
+	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern>... | -l] [-s] [path/]filename | --lpat <timestamp range>... | --help | --version}"
 else
 	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 	echo "$(scr1pt): Help summary: $(scr1pt) --help"

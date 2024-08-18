@@ -6,14 +6,14 @@
 # This small work is dedicated to all those helping to protect endangered species.
 # 2024 Looper Guará
 
-q=1 # time in seconds to press a key and quit the script
+# Time in seconds to press any key and exit the script
+# half a second: 0.5
+q=1
 
-# this script
 scr1pt() {
 	basename "$0"
 }
 
-# required software
 swreq() {
 	type ffprobe >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FFPROBE not found - aborting."; exit 1; }
 	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; }
@@ -21,150 +21,212 @@ swreq() {
 	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; }
 }
 
-# get media stream duration
 getdur() {
 	ffprobe -v quiet -show_entries format=duration:stream=duration -print_format default=noprint_wrappers=1:nokey=1 -i "$f1" | grep -oE '[0-9]+' | head -n 1
 }
 
-# get interval count and duration
 getiparam() {
-	if echo "$dur" | grep -qvE '^[0-9]+$' ; then # unknown total duration
+	if grep -qvE '^[0-9]+$' <<< "$dur" ; then
 		idur="$_length"
 		ivals=1
-	elif [ "$dur" -le 12 ] ; then # maximum undivided duration
+	elif ((dur <= 12)) ; then
 		idur="$dur"
 		ivals=1
-	elif [ "$dur" -le 60 ] ; then
-		idur=$(( dur / ( 1 * scal ) ))
-		ivals="$scal" # compensates for whole number calculations
-	elif [ "$dur" -le 327 ] ; then
-		idur=$(( dur / ( 2 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 654 ] ; then
-		idur=$(( dur / ( 3 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 981 ] ; then
-		idur=$(( dur / ( 4 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 1309 ] ; then
-		idur=$(( dur / ( 5 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 1636 ] ; then
-		idur=$(( dur / ( 6 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 1963 ] ; then
-		idur=$(( dur / ( 7 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 2290 ] ; then
-		idur=$(( dur / ( 8 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 2618 ] ; then
-		idur=$(( dur / ( 9 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 2945 ] ; then
-		idur=$(( dur / ( 10 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 3272 ] ; then
-		idur=$(( dur / ( 11 * scal ) ))
-		ivals=$(( dur / idur ))
-	elif [ "$dur" -le 3600 ] ; then
-		idur=$(( dur / ( 12 * scal ) ))
-		ivals=$(( dur / idur ))
-	else # fixed interval durations for a total duration greater than one hour
-		if [ "$scal" -eq 1 ] ; then
+	elif ((dur <= 60)) ; then
+		idur=$((dur / (1 * scal)))
+		ivals="$scal"
+	elif ((dur <= 327)) ; then
+		idur=$((dur / (2 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 654)) ; then
+		idur=$((dur / (3 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 981)) ; then
+		idur=$((dur / (4 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 1309)) ; then
+		idur=$((dur / (5 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 1636)) ; then
+		idur=$((dur / (6 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 1963)) ; then
+		idur=$((dur / (7 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 2290)) ; then
+		idur=$((dur / (8 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 2618)) ; then
+		idur=$((dur / (9 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 2945)) ; then
+		idur=$((dur / (10 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 3272)) ; then
+		idur=$((dur / (11 * scal)))
+		ivals=$((dur / idur))
+	elif ((dur <= 3600)) ; then
+		idur=$((dur / (12 * scal)))
+		ivals=$((dur / idur))
+	else
+		if ((scal == 1)) ; then
 			idur=300
-		elif [ "$scal" -eq 2 ] ; then
+		elif ((scal == 2)) ; then
 			idur=240
-		elif [ "$scal" -eq 3 ] ; then
+		elif ((scal == 3)) ; then
 			idur=180
-		elif [ "$scal" -eq 4 ] ; then
+		elif ((scal == 4)) ; then
 			idur=120
-		elif [ "$scal" -eq 5 ] ; then
+		elif ((scal == 5)) ; then
 			idur=60
 		fi
-			ivals=$(( dur / idur ))
+			ivals=$((dur / idur))
 	fi
 
-	if [ "$_length" -gt "$idur" ] ; then
-		_length="$idur" # clip duration entered must be equal to the calculated interval duration at most
+	if ((_length > idur)) ; then
+		_length="$idur"
 		echo "$(scr1pt): INFO: Clip duration reset: ${idur}s"
 	fi
 }
 
-# wait and confirm to quit the script
 uquit() {
 	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
-	read -rst "$q" -N 1
-	if [ "$?" -eq 0 ] ; then
+	if read -rst "$q" -N 1 ; then
 		echo "$(scr1pt): File: $f1"
-		echo "$(scr1pt): Interval: $ival / $ivals ($(( ( iterin - 1 ) * idur ))-$(( idur * iterin ))s)"
+		echo "$(scr1pt): Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
 		echo "$(scr1pt): Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
-				'EXIT the script' ) echo "$(scr1pt): $(( iterout - 1 )) iterations completed - exiting..." ; exit;;
-				'SKIP file' ) return 1;;
-				'Cancel' ) break;;
+				'EXIT the script' )
+					echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+					echo "$(scr1pt): $((iterout - 1)) iterations completed - exiting..."
+					exit;;
+				'SKIP file' )
+					echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+					return 1;;
+				'Cancel' )
+					break;;
 			esac
 		done 2>&1
 	fi
+	echo
 }
 
 core() {
 	if [ -z "$dur" ] ; then
 		echo "$(scr1pt): INFO: Total duration unknown - playing video from beginning."
 	fi
-	echo "$(scr1pt): Interval: $ival / $ivals ($(( ( iterin - 1 ) * idur ))-$(( idur * iterin ))s)"
+	echo "$(scr1pt): Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
 	echo "$(scr1pt): Options:" "${@:-None}"
+	echo "$(scr1pt): Loop Pattern: $lpat"
 	echo "$(scr1pt): Starting mpv..."
 	mpv "$@" "$f1"
 }
 
-# playlist function where lines are parsed
-core_ll() {
-	for line in $(grep -v '[[:space:]]' "$fl1" | paste -s) ; do # each line without whitespace
-		if [ ! -f "$line" ] ; then # skip line without file
-			if [ ${#line} -gt 90 ] ; then
-				echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}" # 90 characters are printed
-				continue
+core_llt() {
+	if [ -v shuffle ] ; then
+		readarray -t iall < <(shuf "$fl1")
+	else
+		readarray -t iall < <(cat -s "$fl1")
+	fi
+	for (( ival=1 ; ival<=scal ; ival++ )) ; do
+		for line in "${iall[@]}" ; do
+			if [ -f "$line" ] ; then
+				f1="$line"
+				ff1="$(realpath -q "$f1")"
+				_length="$_lengtho"
+				dur="$(getdur)"
+				if ((_length > dur)) ; then
+					_length="$dur"
+					echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+				fi
+				idur="$dur"
+				ivals="$scal"
+				iterout=$((iterout + 1))
+				iterin=1
+				_start=$(shuf -i "0-$((dur - _length))" -n 1)
+				lpat="A${_start}0B$((_start + _length))0"
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						unset _start
+						unset iterin
+						continue
+					fi
+				fi
+				core --start="$_start" --length="$_length" "$@"
 			else
-				echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
-				continue
-			fi
-		fi
-		f1="$line"
-		_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
-		dur="$(getdur)" # total duration
-		getiparam # interval count and duration
-		for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
-			iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
-			iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
-			_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
-			if (( iterout>1 )) ; then
-				uquit # not before the first file
-				if [ "$?" -eq 1 ] ; then # skip the file
-					iterout=$(( iterout - 1 ))
-					unset _start
-					unset iterin
-					continue 2
+				if grep -q '[^[:space:]]' <<< "$line" ; then
+					if [ ${#line} -gt 90 ] ; then
+						echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
+					else
+						echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
+					fi
 				fi
 			fi
-			core --start="$_start" --length="$_length" "$@"
 		done
 		unset _start
 		unset iterin
 	done
 }
 
-if (( "$#"==0 )) ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [--ll] [path/]filename | --help | --version}"
+core_ll() {
+	if [ -v shuffle ] ; then
+		readarray -t iall < <(shuf "$fl1")
+	else
+		readarray -t iall < <(cat -s "$fl1")
+	fi
+	for line in "${iall[@]}" ; do
+		if [ -f "$line" ] ; then
+			f1="$line"
+			ff1="$(realpath -q "$f1")"
+			_length="$_lengtho"
+			dur="$(getdur)"
+			getiparam
+			for (( ival=1 ; ival<=ivals ; ival++ )) ; do
+				iterout=$((iterout + 1))
+				iterin=$((iterin + 1))
+				_start=$(shuf -i "$(((iterin - 1) * idur))-$((idur * iterin - _length))" -n 1)
+				lpat="A${_start}0B$((_start + _length))0"
+				readarray -O "$iterin" -t lpatpl <<< "$lpat"
+				if ((iterout > 1)) ; then
+					uquit
+					if [ "$?" -eq 1 ] ; then
+						iterout=$((iterout - 1))
+						unset _start
+						unset iterin
+						continue 2
+					fi
+				fi
+				core --start="$_start" --length="$_length" "$@"
+			done
+			echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+			unset lpatpl
+			unset _start
+			unset iterin
+		else
+			if grep -q '[^[:space:]]' <<< "$line" ; then
+				if [ ${#line} -gt 90 ] ; then
+					echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
+				else
+					echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
+				fi
+			fi
+		fi
+	done
+}
+
+if (("$#" == 0)) ; then
+	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [-l|-s|-t] [path/]filename | --help | --version}"
 elif [ '--version' = "$1" ] ; then
-	echo "mpvival 0.6"
+	echo "mpvival 1.0"
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVIVAL - run MPV adjusted at intervals of the total duration of a file
 
 	SYNOPSIS
-mpvival {[<mpv profile>] <clip duration> <interval scale> [--ll] [path/]filename |
+mpvival {[<mpv profile>] <clip duration> <interval scale> [-l|-s|-t] [path/]filename |
 	--help | --version}
 
 	DESCRIPTION
@@ -234,11 +296,11 @@ seconds.
 
 	<interval scale>
 An integer between 1 and 5 where the higher the number, the more intervals and
-therefore the more times the file is played.
+therefore the more times the file is played. How many times the file list is
+repeated with the -t option.
 
-	--ll file
-Plaintext playlist where each line is a file location. A line must not contain
-blanks, otherwise it is ignored.
+	-l file
+Plaintext playlist where each line is a file location.
 
 	For the playlist file foo.txt that contains the following two lines,
 	where foo1.mp4 is 1 minute and foo2.mp4 is 2 minutes:
@@ -246,11 +308,19 @@ blanks, otherwise it is ignored.
 foo2.mp4
 
 	And command line:
-mpvival 2 1 --ll foo.txt
+mpvival 2 1 -l foo.txt
 	How MPV is run with a random start time:
 mpv --start=21 --length=2 /path/to/foo1.mp4 ; \
 mpv --start=17 --length=2 foo2.mp4 ; \
 mpv --start=84 --length=2 foo2.mp4
+
+	-s file
+Shuffle the file list. Options must be combined in any order with -t or -l,
+for example: -tls.
+
+	-t file
+Each file is played once each time the file list is repeated. With -l, options
+must be combined in any order, for example: -tl.
 
 	--version
 Display version information.
@@ -262,7 +332,7 @@ Print this help summary.
 FFmpeg (ffprobe)
 file (command)
 GNU Bourne-Again SHell (Bash)
-GNU Coreutils (basename, echo, paste, realpath, shuf)
+GNU Coreutils
 GNU Grep
 mpv
 
@@ -271,15 +341,22 @@ Unlicense <http://unlicense.org/>
 This is free and unencumbered software released into the public domain and
 provided without warranty of any kind.
 _EOF_
-elif [ '--ll' = "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # clip duration + interval scale + playlist
+elif [ '-l' = "$3" ] || [ '-ls' = "$3" ] || [ '-sl' = "$3" ] || [ '-tl' = "$3" ] || [ '-lt' = "$3" ] || [ '-lst' = "$3" ] || [ '-lts' = "$3" ] || [ '-tls' = "$3" ] || [ '-tsl' = "$3" ] || [ '-slt' = "$3" ] || [ '-stl' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
 	swreq
-	_lengtho="$1" # entered clip duration
-	scal="$2" # interval scale
+	_lengtho="$1"
+	scal="$2"
+	if [ '-ls' = "$3" ] || [ '-sl' = "$3" ] || [ '-lst' = "$3" ] || [ '-lts' = "$3" ] || [ '-tls' = "$3" ] || [ '-tsl' = "$3" ] || [ '-slt' = "$3" ] || [ '-stl' = "$3" ] ; then
+		shuffle=y
+	fi
 	if [ -r "$4" ] ; then
-		if file -b --mime-type "$4" | grep -q 'text/plain' ; then # plain text file
-			if grep -q '[^[:space:]]' < "$4" ; then # not empty
-				fl1="$4" # playlist file
-				core_ll
+		if file -b --mime-type "$4" | grep -q 'text/plain' ; then
+			if grep -q '[^[:space:]]' < "$4" ; then
+				fl1="$4"
+				if [ '-stl' = "$3" ] || [ '-slt' = "$3" ] || [ '-tsl' = "$3" ] || [ '-tls' = "$3" ] || [ '-lts' = "$3" ] || [ '-lst' = "$3" ] || [ '-lt' = "$3" ] || [ '-tl' = "$3" ] ; then
+					core_llt
+				else
+					core_ll
+				fi
 			else
 				echo >&2 "$(scr1pt): WARNING: Empty file: $4"
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
@@ -293,26 +370,98 @@ elif [ '--ll' = "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
 	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + playlist
+elif [ '-t' = "$3" ] || [ '-ts' = "$3" ] || [ '-st' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
 	swreq
-	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
-		_lengtho="$1" # entered clip duration
-		prf="$2" # mpv profile
-		scal="$3" # interval scale
-	elif echo "$2" | grep -qE "^[0-9]+$" && (( "$2">0 )) ; then # assuming number is clip duration
-		prf="$1" # mpv profile
-		_lengtho="$2" # entered clip duration
-		scal="$3" # interval scale
+	_lengtho="$1"
+	scal="$2"
+	iterin=1
+	if [ '-ts' = "$3" ] || [ '-st' = "$3" ] ; then
+		shuffle=y
+	fi
+	shift 3
+	iall3+=("$@")
+	if [ -v iall3 ] ; then
+		for f2 in "${iall3[@]}" ; do
+			if [ -d "$f2" ] ; then
+				shopt -qs globstar
+				f1a="$(realpath -q "$f2")"
+				for f1b in "${f1a}"/** ; do
+					if [ -f "$f1b" ] ; then
+						iall2+=("$f1b")
+					else
+						continue
+					fi
+				done
+			elif [ -f "$f2" ] ; then
+				iall2+=("$f2")
+			else
+				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+			fi
+		done
+		if [ -v shuffle ] ; then
+			readarray -t iall1 < <(shuf -e "${iall2[@]}")
+		else
+			iall1+=("${iall2[@]}")
+		fi
 	else
 		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		exit 1
 	fi
+	for (( ival=1 ; ival<=scal ; ival++ )) ; do
+		for f1 in "${iall1[@]}" ; do
+			ff1="$(realpath -q "$f1")"
+			_length="$_lengtho"
+			dur="$(getdur)"
+			if ((_length > dur)) ; then
+				_length="$dur"
+				echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+			fi
+			idur="$dur"
+			ivals="$scal"
+			iterout=$((iterout + 1))
+			_start=$(shuf -i "0-$((dur - _length))" -n 1)
+			lpat="A${_start}0B$((_start + _length))0"
+			if ((iterout > 1)) ; then
+				uquit
+				if [ "$?" -eq 1 ] ; then
+					iterout=$((iterout - 1))
+					unset _start
+					continue
+				fi
+			fi
+			core --start="$_start" --length="$_length"
+			unset _start
+		done
+	done
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+elif [ '-l' = "$4" ] || [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-tl' = "$4" ] || [ '-lt' = "$4" ] || [ '-lst' = "$4" ] || [ '-lts' = "$4" ] || [ '-tls' = "$4" ] || [ '-tsl' = "$4" ] || [ '-slt' = "$4" ] || [ '-stl' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
+	swreq
+	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
+		_lengtho="$1"
+		prf="$2"
+		scal="$3"
+	elif grep -qE "^[0-9]+$" <<< "$2" && (("$2" > 0)) ; then
+		prf="$1"
+		_lengtho="$2"
+		scal="$3"
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	if [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-lst' = "$4" ] || [ '-lts' = "$4" ] || [ '-tls' = "$4" ] || [ '-tsl' = "$4" ] || [ '-slt' = "$4" ] || [ '-stl' = "$4" ] ; then
+		shuffle=y
+	fi
 	if [ -r "$5" ] ; then
-		if file -b --mime-type "$5" | grep -q 'text/plain' ; then # plain text file
-			if grep -q '[^[:space:]]' < "$5" ; then # not empty
-				fl1="$5" # playlist file
-				core_ll --profile="$prf"
+		if file -b --mime-type "$5" | grep -q 'text/plain' ; then
+			if grep -q '[^[:space:]]' < "$5" ; then
+				fl1="$5"
+				if [ '-stl' = "$4" ] || [ '-slt' = "$4" ] || [ '-tsl' = "$4" ] || [ '-tls' = "$4" ] || [ '-lts' = "$4" ] || [ '-lst' = "$4" ] || [ '-lt' = "$4" ] || [ '-tl' = "$4" ] ; then
+					core_llt --profile="$prf"
+				else
+					core_ll --profile="$prf"
+				fi
 			else
 				echo >&2 "$(scr1pt): WARNING: Empty file: $5"
 				echo "$(scr1pt): Help summary: $(scr1pt) --help"
@@ -326,137 +475,225 @@ elif [ '--ll' = "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + 
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 	fi
 	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-elif [ -e "$3" ] && echo "$2" | grep -qE "^[1-5]$" && echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # clip duration + interval scale + file
+elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 	swreq
-	_lengtho="$1" # entered clip duration
-	scal="$2" # interval scale
-	shift # input file only
-	for f1 in "$@" ; do
-		if [ -f "$f1" ] ; then
-			_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
-			dur="$(getdur)" # total duration
-			getiparam # interval count and duration
-			for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
-				iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
-				iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
-				_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
-				if (( iterout>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iterout=$(( iterout - 1 ))
-						unset _start
-						unset iterin
-						continue 2
-					fi
-				fi
-				core --start="$_start" --length="$_length"
-			done
-			unset _start
-			unset iterin
-		elif [ -d "$f1" ] ; then
-			shopt -qs globstar
-			f1a="$(realpath "$f1")"
-			for f1b in "${f1a}"/** ; do # files in and below input directory
-				if [ -f "$f1b" ] ; then
-					unset f1
-					f1="$f1b" # path and file
-					_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
-					dur="$(getdur)" # total duration
-					getiparam # interval count and duration
-					for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
-						iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
-						iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
-						_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
-						if (( iterout>1 )) ; then
-							uquit # not before the first file
-							if [ "$?" -eq 1 ] ; then # skip the file
-								iterout=$(( iterout - 1 ))
-								unset _start
-								unset iterin
-								continue 2
-							fi
-						fi
-						core --start="$_start" --length="$_length"
-					done
-					unset _start
-					unset iterin
-				else
-					continue
-				fi
-			done
-		fi
-	done
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
-elif [ -e "$4" ] && echo "$3" | grep -qE "^[1-5]$" ; then # mpv profile + clip duration + interval scale + file
-	swreq
-	if echo "$1" | grep -qE "^[0-9]+$" && (( "$1">0 )) ; then # assuming number is clip duration
-		_lengtho="$1" # entered clip duration
-		prf="$2" # mpv profile
-		scal="$3" # interval scale
-	elif echo "$2" | grep -qE "^[0-9]+$" && (( "$2">0 )) ; then # assuming number is clip duration
-		prf="$1" # mpv profile
-		_lengtho="$2" # entered clip duration
-		scal="$3" # interval scale
+	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
+		_lengtho="$1"
+		prf="$2"
+		scal="$3"
+	elif grep -qE "^[0-9]+$" <<< "$2" && (("$2" > 0)) ; then
+		prf="$1"
+		_lengtho="$2"
+		scal="$3"
 	else
 		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
 		echo "$(scr1pt): Help summary: $(scr1pt) --help"
 		exit 1
 	fi
-	shift 2 # input file only
-	for f1 in "$@" ; do
-		if [ -f "$f1" ] ; then
-			_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
-			dur="$(getdur)" # total duration
-			getiparam # interval count and duration
-			for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
-				iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
-				iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
-				_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
-				if (( iterout>1 )) ; then
-					uquit # not before the first file
-					if [ "$?" -eq 1 ] ; then # skip the file
-						iterout=$(( iterout - 1 ))
-						unset _start
-						unset iterin
-						continue 2
+	iterin=1
+	if [ '-ts' = "$4" ] || [ '-st' = "$4" ] ; then
+		shuffle=y
+	fi
+	shift 4
+	iall3+=("$@")
+	if [ -v iall3 ] ; then
+		for f2 in "${iall3[@]}" ; do
+			if [ -d "$f2" ] ; then
+				shopt -qs globstar
+				f1a="$(realpath -q "$f2")"
+				for f1b in "${f1a}"/** ; do
+					if [ -f "$f1b" ] ; then
+						iall2+=("$f1b")
+					else
+						continue
 					fi
-				fi
-				core --start="$_start" --length="$_length" --profile="$prf"
-			done
-			unset _start
-			unset iterin
-		elif [ -d "$f1" ] ; then
-			shopt -qs globstar
-			f1a="$(realpath "$f1")"
-			for f1b in "${f1a}"/** ; do # files in and below input directory
-				if [ -f "$f1b" ] ; then
-					unset f1
-					f1="$f1b" # path and file
-					_length="$_lengtho" # clip duration as entered again if reset with last file in the loop
-					dur="$(getdur)" # total duration
-					getiparam # interval count and duration
-					for (( ival=1 ; ival<=ivals ; ival++ )) ; do # each interval
-						iterout=$(( ${iterout:-0} + 1 )) # iteration counter for number of successful iterations on exit
-						iterin=$(( ${iterin:-0} + 1 )) # iteration counter for current file will be reset later
-						_start=$(shuf -i "$(( ( iterin - 1 ) * idur ))-$(( idur * iterin - _length ))" -n 1) # shuffle playback start time
-						if (( iterout>1 )) ; then
-							uquit # not before the first file
-							if [ "$?" -eq 1 ] ; then # skip the file
-								iterout=$(( iterout - 1 ))
-								unset _start
-								unset iterin
-								continue 2
-							fi
-						fi
-						core --start="$_start" --length="$_length" --profile="$prf"
-					done
+				done
+			elif [ -f "$f2" ] ; then
+				iall2+=("$f2")
+			else
+				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+			fi
+		done
+		if [ -v shuffle ] ; then
+			readarray -t iall1 < <(shuf -e "${iall2[@]}")
+		else
+			iall1+=("${iall2[@]}")
+		fi
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	for (( ival=1 ; ival<=scal ; ival++ )) ; do
+		for f1 in "${iall1[@]}" ; do
+			ff1="$(realpath -q "$f1")"
+			_length="$_lengtho"
+			dur="$(getdur)"
+			if ((_length > dur)) ; then
+				_length="$dur"
+				echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+			fi
+			idur="$dur"
+			ivals="$scal"
+			iterout=$((iterout + 1))
+			_start=$(shuf -i "0-$((dur - _length))" -n 1)
+			lpat="A${_start}0B$((_start + _length))0"
+			if ((iterout > 1)) ; then
+				uquit
+				if [ "$?" -eq 1 ] ; then
+					iterout=$((iterout - 1))
 					unset _start
-					unset iterin
-				else
 					continue
 				fi
-			done
+			fi
+			core --start="$_start" --length="$_length" --profile="$prf"
+			unset _start
+		done
+	done
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+elif [ -e "$3" ] || [ '-s' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
+	swreq
+	_lengtho="$1"
+	scal="$2"
+	if [ '-s' = "$3" ] ; then
+		shuffle=y
+		shift 3
+	else
+		shift 2
+	fi
+	iall3+=("$@")
+	if [ -v iall3 ] ; then
+		for f2 in "${iall3[@]}" ; do
+			if [ -d "$f2" ] ; then
+				shopt -qs globstar
+				f1a="$(realpath -q "$f2")"
+				for f1b in "${f1a}"/** ; do
+					if [ -f "$f1b" ] ; then
+						iall2+=("$f1b")
+					else
+						continue
+					fi
+				done
+			elif [ -f "$f2" ] ; then
+				iall2+=("$f2")
+			else
+				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+			fi
+		done
+		if [ -v shuffle ] ; then
+			readarray -t iall1 < <(shuf -e "${iall2[@]}")
+		else
+			iall1+=("${iall2[@]}")
 		fi
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	for f1 in "${iall1[@]}" ; do
+		ff1="$(realpath -q "$f1")"
+		_length="$_lengtho"
+		dur="$(getdur)"
+		getiparam
+		for (( ival=1 ; ival<=ivals ; ival++ )) ; do
+			iterout=$((iterout + 1))
+			iterin=$((iterin + 1))
+			_start=$(shuf -i "$(((iterin - 1) * idur))-$((idur * iterin - _length))" -n 1)
+			lpat="A${_start}0B$((_start + _length))0"
+			readarray -O "$iterin" -t lpatpl <<< "$lpat"
+			if ((iterout > 1)) ; then
+				uquit
+				if [ "$?" -eq 1 ] ; then
+					iterout=$((iterout - 1))
+					unset _start
+					unset iterin
+					continue 2
+				fi
+			fi
+			core --start="$_start" --length="$_length"
+		done
+		echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+		unset lpatpl
+		unset _start
+		unset iterin
+	done
+	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
+	swreq
+	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
+		_lengtho="$1"
+		prf="$2"
+		scal="$3"
+	elif grep -qE "^[0-9]+$" <<< "$2" && (("$2" > 0)) ; then
+		prf="$1"
+		_lengtho="$2"
+		scal="$3"
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	if [ '-s' = "$4" ] ; then
+		shuffle=y
+		shift 4
+	else
+		shift 3
+	fi
+	iall3+=("$@")
+	if [ -v iall3 ] ; then
+		for f2 in "${iall3[@]}" ; do
+			if [ -d "$f2" ] ; then
+				shopt -qs globstar
+				f1a="$(realpath -q "$f2")"
+				for f1b in "${f1a}"/** ; do
+					if [ -f "$f1b" ] ; then
+						iall2+=("$f1b")
+					else
+						continue
+					fi
+				done
+			elif [ -f "$f2" ] ; then
+				iall2+=("$f2")
+			else
+				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+			fi
+		done
+		if [ -v shuffle ] ; then
+			readarray -t iall1 < <(shuf -e "${iall2[@]}")
+		else
+			iall1+=("${iall2[@]}")
+		fi
+	else
+		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
+		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		exit 1
+	fi
+	for f1 in "${iall1[@]}" ; do
+		ff1="$(realpath -q "$f1")"
+		_length="$_lengtho"
+		dur="$(getdur)"
+		getiparam
+		for (( ival=1 ; ival<=ivals ; ival++ )) ; do
+			iterout=$((iterout + 1))
+			iterin=$((iterin + 1))
+			_start=$(shuf -i "$(((iterin - 1) * idur))-$((idur * iterin - _length))" -n 1)
+			lpat="A${_start}0B$((_start + _length))0"
+			readarray -O "$iterin" -t lpatpl <<< "$lpat"
+			if ((iterout > 1)) ; then
+				uquit
+				if [ "$?" -eq 1 ] ; then
+					iterout=$((iterout - 1))
+					unset _start
+					unset iterin
+					continue 2
+				fi
+			fi
+			core --start="$_start" --length="$_length" --profile="$prf"
+		done
+		echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+		unset lpatpl
+		unset _start
+		unset iterin
 	done
 	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
 else
