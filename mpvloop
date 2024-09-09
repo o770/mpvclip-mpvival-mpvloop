@@ -24,15 +24,13 @@ q=1
 # Field delimiter in a playlist
 d=,
 
-scr1pt() {
-	basename "$0"
-}
+scp="$(basename "$0")"
 
 swreq() {
-	type awk >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: AWK not found - aborting."; exit 1; }
-	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; }
-	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; }
-	type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
+	type awk >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: AWK not found - aborting."; exit 1; }
+	type file >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: FILE (command) not found - aborting."; exit 1; }
+	type grep >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: GREP not found - aborting."; exit 1; }
+	type mpv >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: MPV not found - aborting."; exit 1; }
 }
 
 lpat_tt() {
@@ -59,14 +57,14 @@ lpat_b() {
 }
 
 uquit() {
-	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
+	echo "${scp}: INFO: Press any key to exit the script or skip the file."
 	if read -rst "$q" -N 1 ; then
-		echo "$(scr1pt): File: $f1"
-		echo "$(scr1pt): Please confirm:"
+		echo "${scp}: File: $f1"
+		echo "${scp}: Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
 				'EXIT the script' )
-					echo "$(scr1pt): $((iter - 1)) iterations completed - exiting..."
+					echo "${scp}: $((iter - 1)) iterations completed - exiting..."
 					exit;;
 				'SKIP file' )
 					return 1;;
@@ -80,31 +78,31 @@ uquit() {
 
 core() {
 	if [ "$aa" -eq 0 ] && [ "$bb" -eq 0 ] ; then
-		echo "$(scr1pt): Loop pattern: $(grep -oE "$lpat" <<< "$ab") (file)"
-		echo "$(scr1pt): Options: --loop-file=inf" "$@"
-		echo "$(scr1pt): Starting mpv..."
+		echo "${scp}: Loop pattern: $(grep -oE "$lpat" <<< "$ab") (file)"
+		echo "${scp}: Options: --loop-file=inf" "$@"
+		echo "${scp}: Starting mpv..."
 		mpv --loop-file=inf "$@" "$f1"
 		return
 	elif [ "$aa" -eq 0 ] ; then
 		b=$(lpat_b)
-		echo "$(scr1pt): Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") (${b}s)"
-		echo "$(scr1pt): Options: --ab-loop-a=no --ab-loop-b=$b" "$@"
-		echo "$(scr1pt): Starting mpv..."
+		echo "${scp}: Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") (${b}s)"
+		echo "${scp}: Options: --ab-loop-a=no --ab-loop-b=$b" "$@"
+		echo "${scp}: Starting mpv..."
 		mpv --ab-loop-a=no --ab-loop-b="$b" "$@" "$f1"
 		return
 	elif [ "$bb" -eq 0 ] ; then
 		a=$(lpat_a)
-		echo "$(scr1pt): Loop pattern: $(grep -oE "$lpat" <<< "$ab")"
-		echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=no" "$@"
-		echo "$(scr1pt): Starting mpv..."
+		echo "${scp}: Loop pattern: $(grep -oE "$lpat" <<< "$ab")"
+		echo "${scp}: Options: --start=$a --ab-loop-a=$a --ab-loop-b=no" "$@"
+		echo "${scp}: Starting mpv..."
 		mpv --start="$a" --ab-loop-a="$a" --ab-loop-b=no "$@" "$f1"
 		return
 	fi
 	a=$(lpat_a)
 	b=$(lpat_b)
-	echo "$(scr1pt): Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)"
-	echo "$(scr1pt): Options: --start=$a --ab-loop-a=$a --ab-loop-b=$b" "$@"
-	echo "$(scr1pt): Starting mpv..."
+	echo "${scp}: Loop pattern and duration: $(grep -oE "$lpat" <<< "$ab") ($(awk "BEGIN { print ( $bb * $sc ) - ( $aa * $sc ) }")s)"
+	echo "${scp}: Options: --start=$a --ab-loop-a=$a --ab-loop-b=$b" "$@"
+	echo "${scp}: Starting mpv..."
 	mpv --start="$a" --ab-loop-a="$a" --ab-loop-b="$b" "$@" "$f1"
 }
 
@@ -118,10 +116,10 @@ core_ll() {
 		f1="$(cut -d "$d" -f 1 <<< "$line")"
 		if [ ! -f "$f1" ] || grep -qv "$d" <<< "$line" ; then
 			if [ ${#line} -gt 90 ] ; then
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
+				echo >&2 "${scp}: WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
 				continue
 			else
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
+				echo >&2 "${scp}: WARNING: No field separator or file - skipping: $line"
 				continue
 			fi
 		fi
@@ -139,7 +137,7 @@ core_ll() {
 				fi
 				core "$@"
 			else
-				echo >&2 "$(scr1pt): WARNING: Invalid loop pattern - skipping: $ab"
+				echo >&2 "${scp}: WARNING: Invalid loop pattern - skipping: $ab"
 				continue
 			fi
 		done
@@ -162,7 +160,7 @@ if [ -e "$1" ] ; then
 		elif [ -f "$f2" ] ; then
 			iall1+=("$f2")
 		else
-			echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+			echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 		fi
 	done
 	for f1 in "${iall1[@]}" ; do
@@ -181,10 +179,10 @@ if [ -e "$1" ] ; then
 				core
 			done
 		else
-			echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1")"
+			echo >&2 "${scp}: WARNING: No loop pattern - skipping: $(basename "$f1")"
 		fi
 	done
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
+	echo "${scp}: ${iter:-0} iterations completed - exiting..."
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVLOOP - run MPV with loop options set according to a pattern.
@@ -314,7 +312,7 @@ instead of seconds.
 l ab-loop ; print-text "ab-loop=${=time-pos}"
 _EOF_
 elif [ '--version' = "$1" ] ; then
-	echo "mpvloop 1.0"
+	echo "mpvloop 1.1"
 elif [ '--lpat' = "$1" ] ; then
 	swreq
 	if [ -n "$2" ] ; then
@@ -346,12 +344,12 @@ elif [ '--lpat' = "$1" ] ; then
 					printf "%s\\t%s\\n" "$lpat_ab" "(${tt})"
 				fi
 			else
-				echo >&2 "$(scr1pt): WARNING: Invalid timestamp format - skipping: $tt"
+				echo >&2 "${scp}: WARNING: Invalid timestamp format - skipping: $tt"
 			fi
 		done
 	else
-		echo "$(scr1pt): Usage: $(scr1pt) --lpat <HH:MM:SS[.n]-HH:MM:SS[.n] | HH:MM:SS[.n]- | -HH:MM:SS[.n]>..."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo "${scp}: Usage: ${scp} --lpat <HH:MM:SS[.n]-HH:MM:SS[.n] | HH:MM:SS[.n]- | -HH:MM:SS[.n]>..."
+		echo "${scp}: Help summary: ${scp} --help"
 
 	fi
 elif [ '-l' = "$1" ] || [ '-ls' = "$1" ] || [ '-sl' = "$1" ] ; then
@@ -365,19 +363,19 @@ elif [ '-l' = "$1" ] || [ '-ls' = "$1" ] || [ '-sl' = "$1" ] ; then
 				loopfile="$2"
 				core_ll
 			else
-				echo >&2 "$(scr1pt): WARNING: Empty file: $2"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: Empty file: $2"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $2"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $2"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 	else
 		shift
-		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist:" "$@"
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
+	echo "${scp}: ${iter:-0} iterations completed - exiting..."
 elif [ '-l' = "$2" ] || [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
 	swreq
 	if [ "$#" -eq 3 ] && [ -r "$3" ] ; then
@@ -389,20 +387,22 @@ elif [ '-l' = "$2" ] || [ '-ls' = "$2" ] || [ '-sl' = "$2" ] ; then
 				loopfile="$3"
 				core_ll --profile="$1"
 			else
-				echo >&2 "$(scr1pt): WARNING: Empty file: $3"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: Empty file: $3"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $3"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $3"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 	else
 		shift 2
-		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist:" "$@"
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif grep -oqE ^"${lpat}"\$ <<< "$2" || grep -oqE ^"${lpat}"\$ <<< "$1" || [ -e "$2" ] ; then
+	echo "${scp}: ${iter:-0} iterations completed - exiting..."
+elif [ "$#" -eq 0 ] ; then
+	echo "${scp}: Usage: ${scp} {[<mpv profile,...>] [<loop pattern>... | -l] [-s] [path/]filename | --lpat <timestamp range>... | --help | --version}"
+else
 	swreq
 	for arg in "$@" ; do
 		iterin=$((iterin + 1))
@@ -418,7 +418,7 @@ elif grep -oqE ^"${lpat}"\$ <<< "$2" || grep -oqE ^"${lpat}"\$ <<< "$1" || [ -e 
 			if [ ! -v prf ] ; then
 				prf="$arg"
 			else
-				echo >&2 "$(scr1pt): WARNING: MPV profile already set to ${prf@Q} - skipping: $arg"
+				echo >&2 "${scp}: WARNING: MPV profile already set to ${prf@Q} - skipping: $arg"
 			fi
 		fi
 	done
@@ -438,7 +438,7 @@ elif grep -oqE ^"${lpat}"\$ <<< "$2" || grep -oqE ^"${lpat}"\$ <<< "$1" || [ -e 
 			elif [ -f "$f2" ] ; then
 				iall2+=("$f2")
 			else
-				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 			fi
 		done
 		if [ -v shuffle ] ; then
@@ -485,18 +485,13 @@ elif grep -oqE ^"${lpat}"\$ <<< "$2" || grep -oqE ^"${lpat}"\$ <<< "$1" || [ -e 
 						fi
 					done
 				else
-					echo >&2 "$(scr1pt): WARNING: No loop pattern - skipping: $(basename "$f1")"
+					echo >&2 "${scp}: WARNING: No loop pattern - skipping: $(basename "$f1")"
 				fi
 			fi
 		done
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
-	echo "$(scr1pt): ${iter:-0} iterations completed - exiting..."
-elif [ "$#" -eq 0 ] ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] [<loop pattern>... | -l] [-s] [path/]filename | --lpat <timestamp range>... | --help | --version}"
-else
-	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-	echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	echo "${scp}: ${iter:-0} iterations completed - exiting..."
 fi

@@ -22,12 +22,10 @@ q=1
 # Field delimiter in a playlist
 d=,
 
-scr1pt() {
-	basename "$0"
-}
+scp="$(basename "$0")"
 
 if [ "$#" -eq 0 ] ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename | --help | --version}"
+	echo "${scp}: Usage: ${scp} {[<mpv profile,...>] <tag> [-p <pattern> | -l] [-s] [path/]filename | --help | --version}"
 	exit
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
@@ -125,7 +123,7 @@ provided without warranty of any kind.
 _EOF_
 	exit
 elif [ '--version' = "$1" ] ; then
-	echo "mpvclipf 1.0"
+	echo "mpvclipf 1.1"
 	exit
 fi
 
@@ -138,14 +136,14 @@ swreq() {
 }
 
 uquit() {
-	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
+	echo "${scp}: INFO: Press any key to exit the script or skip the file."
 	if read -rst "$q" -N 1 ; then
-		echo "$(scr1pt): File: $f1"
-		echo "$(scr1pt): Please confirm:"
+		echo "${scp}: File: $f1"
+		echo "${scp}: Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
 				'EXIT the script' )
-					echo "$(scr1pt): $((iterout - 1)) iterations completed - exiting..."
+					echo "${scp}: $((iterout - 1)) iterations completed - exiting..."
 					exit;;
 				'SKIP file' )
 					return 1;;
@@ -167,10 +165,10 @@ core_ll() {
 		f1="$(cut -d "$d" -f 1 <<< "$line")"
 		if [ ! -f "$f1" ] || grep -qv "$d" <<< "$line" ; then
 			if [ ${#line} -gt 90 ] ; then
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
+				echo >&2 "${scp}: WARNING: No field separator or file - skipping: ${line:0:45}...${line: -45}"
 				continue
 			else
-				echo >&2 "$(scr1pt): WARNING: No field separator or file - skipping: $line"
+				echo >&2 "${scp}: WARNING: No field separator or file - skipping: $line"
 				continue
 			fi
 		fi
@@ -185,8 +183,8 @@ core_ll() {
 						continue 2
 					fi
 				fi
-				echo "$(scr1pt): Clip tag: $ltag"
-				echo "$(scr1pt): Starting ${_mpvclip}..."
+				echo "${scp}: Clip tag: $ltag"
+				echo "${scp}: Starting ${_mpvclip}..."
 				"$_mpvclip" "$@" "$ab" "$f1"
 			else
 				continue
@@ -208,22 +206,22 @@ if [ ! -e "$1" ] ; then
 					fi
 					core_ll
 				else
-					echo >&2 "$(scr1pt): WARNING: Empty file: $3"
-					echo "$(scr1pt): Help summary: $(scr1pt) --help"
+					echo >&2 "${scp}: WARNING: Empty file: $3"
+					echo "${scp}: Help summary: ${scp} --help"
 				fi
 			else
-				echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $3"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $3"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
 			shift 2
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist:" "$@"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	elif [ '-p' = "$2" ] && [ -e "$4" ] || [ '-s' = "$4" ] ; then
 		ltag="$1"
@@ -251,7 +249,7 @@ if [ ! -e "$1" ] ; then
 						continue
 					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+					echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 				fi
 			done
 			if [ -v shuffle ] ; then
@@ -260,8 +258,8 @@ if [ ! -e "$1" ] ; then
 				iall1+=("${iall2[@]}")
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: Invalid options - aborting."
+			echo "${scp}: Help summary: ${scp} --help"
 			exit 1
 		fi
 		for f1 in "${iall1[@]}" ; do
@@ -274,15 +272,15 @@ if [ ! -e "$1" ] ; then
 						continue 2
 					fi
 				fi
-				echo "$(scr1pt): Clip tag: $ltag"
-				echo "$(scr1pt): Starting ${_mpvclip}..."
+				echo "${scp}: Clip tag: $ltag"
+				echo "${scp}: Starting ${_mpvclip}..."
 				"$_mpvclip" "$ab" "$f1"
 			done
 		done
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	elif [ '-l' = "$3" ] || [ '-ls' = "$3" ] || [ '-sl' = "$3" ] ; then
 		if [ "$#" -eq 4 ] && [ -r "$4" ] ; then
@@ -297,8 +295,8 @@ if [ ! -e "$1" ] ; then
 								ltag="$arg"
 							else
 								if [ -n "$ltag" ] ; then
-									echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
-									echo "$(scr1pt): Help summary: $(scr1pt) --help"
+									echo >&2 "${scp}: WARNING: Cannot define MPV profile - aborting."
+									echo "${scp}: Help summary: ${scp} --help"
 									exit 1
 								fi
 							fi
@@ -314,22 +312,22 @@ if [ ! -e "$1" ] ; then
 					fi
 					core_ll "$prf"
 				else
-					echo >&2 "$(scr1pt): WARNING: Empty file: $4"
-					echo "$(scr1pt): Help summary: $(scr1pt) --help"
+					echo >&2 "${scp}: WARNING: Empty file: $4"
+					echo "${scp}: Help summary: ${scp} --help"
 				fi
 			else
-				echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $4"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $4"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
 			shift 3
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist:" "$@"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist:" "$@"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	elif [ '-p' = "$3" ] && [ -e "$5" ] || [ '-s' = "$5" ] ; then
 		ppat="$4"
@@ -342,8 +340,8 @@ if [ ! -e "$1" ] ; then
 					ltag="$arg"
 				else
 					if [ -n "$ltag" ] ; then
-						echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
-						echo "$(scr1pt): Help summary: $(scr1pt) --help"
+						echo >&2 "${scp}: WARNING: Cannot define MPV profile - aborting."
+						echo "${scp}: Help summary: ${scp} --help"
 						exit 1
 					fi
 				fi
@@ -376,7 +374,7 @@ if [ ! -e "$1" ] ; then
 						continue
 					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+					echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 				fi
 			done
 			if [ -v shuffle ] ; then
@@ -385,8 +383,8 @@ if [ ! -e "$1" ] ; then
 				iall1+=("${iall2[@]}")
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: Invalid options - aborting."
+			echo "${scp}: Help summary: ${scp} --help"
 			exit 1
 		fi
 		for f1 in "${iall1[@]}" ; do
@@ -399,15 +397,15 @@ if [ ! -e "$1" ] ; then
 						continue 2
 					fi
 				fi
-				echo "$(scr1pt): Clip tag: $ltag"
-				echo "$(scr1pt): Starting ${_mpvclip}..."
+				echo "${scp}: Clip tag: $ltag"
+				echo "${scp}: Starting ${_mpvclip}..."
 				"$_mpvclip" "$prf" "$ab" "$f1"
 			done
 		done
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	elif [ -e "$2" ] || [ '-s' = "$2" ] ; then
 		ltag="$1"
@@ -434,7 +432,7 @@ if [ ! -e "$1" ] ; then
 						continue
 					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+					echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 				fi
 			done
 			if [ -v shuffle ] ; then
@@ -443,8 +441,8 @@ if [ ! -e "$1" ] ; then
 				iall1+=("${iall2[@]}")
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: Invalid options - aborting."
+			echo "${scp}: Help summary: ${scp} --help"
 			exit 1
 		fi
 		for f1 in "${iall1[@]}" ; do
@@ -457,15 +455,15 @@ if [ ! -e "$1" ] ; then
 						continue 2
 					fi
 				fi
-				echo "$(scr1pt): Clip tag: $ltag"
-				echo "$(scr1pt): Starting ${_mpvclip}..."
+				echo "${scp}: Clip tag: $ltag"
+				echo "${scp}: Starting ${_mpvclip}..."
 				"$_mpvclip" "$ab" "$f1"
 			done
 		done
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	elif [ ! -e "$2" ] && [ -e "$3" ] || [ '-s' = "$3" ] ; then
 		for arg in "$1" "$2" ; do
@@ -477,8 +475,8 @@ if [ ! -e "$1" ] ; then
 					ltag="$arg"
 				else
 					if [ -n "$ltag" ] ; then
-						echo >&2 "$(scr1pt): WARNING: Cannot define MPV profile - aborting."
-						echo "$(scr1pt): Help summary: $(scr1pt) --help"
+						echo >&2 "${scp}: WARNING: Cannot define MPV profile - aborting."
+						echo "${scp}: Help summary: ${scp} --help"
 						exit 1
 					fi
 				fi
@@ -511,7 +509,7 @@ if [ ! -e "$1" ] ; then
 						continue
 					fi
 				else
-					echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+					echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 				fi
 			done
 			if [ -v shuffle ] ; then
@@ -520,8 +518,8 @@ if [ ! -e "$1" ] ; then
 				iall1+=("${iall2[@]}")
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: Invalid options - aborting."
+			echo "${scp}: Help summary: ${scp} --help"
 			exit 1
 		fi
 		for f1 in "${iall1[@]}" ; do
@@ -534,21 +532,21 @@ if [ ! -e "$1" ] ; then
 						continue 2
 					fi
 				fi
-				echo "$(scr1pt): Clip tag: $ltag"
-				echo "$(scr1pt): Starting ${_mpvclip}..."
+				echo "${scp}: Clip tag: $ltag"
+				echo "${scp}: Starting ${_mpvclip}..."
 				"$_mpvclip" "$prf" "$ab" "$f1"
 			done
 		done
 		if [ -v iterout ] ; then
-			echo "$(scr1pt): $iterout iterations completed - exiting..."
+			echo "${scp}: $iterout iterations completed - exiting..."
 		else
-			echo >&2 "$(scr1pt): WARNING: Tag or pattern not found - exiting..."
+			echo >&2 "${scp}: WARNING: Tag or pattern not found - exiting..."
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
 else
-	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-	echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	echo >&2 "${scp}: WARNING: Invalid options - aborting."
+	echo "${scp}: Help summary: ${scp} --help"
 fi

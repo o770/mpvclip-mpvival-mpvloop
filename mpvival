@@ -10,15 +10,13 @@
 # half a second: 0.5
 q=1
 
-scr1pt() {
-	basename "$0"
-}
+scp="$(basename "$0")"
 
 swreq() {
-	type ffprobe >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FFPROBE not found - aborting."; exit 1; }
-	type grep >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: GREP not found - aborting."; exit 1; }
-	type mpv >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: MPV not found - aborting."; exit 1; }
-	type file >/dev/null 2>&1 || { echo >&2 "$(scr1pt): WARNING: FILE (command) not found - aborting."; exit 1; }
+	type ffprobe >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: FFPROBE not found - aborting."; exit 1; }
+	type grep >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: GREP not found - aborting."; exit 1; }
+	type mpv >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: MPV not found - aborting."; exit 1; }
+	type file >/dev/null 2>&1 || { echo >&2 "${scp}: WARNING: FILE (command) not found - aborting."; exit 1; }
 }
 
 getdur() {
@@ -85,24 +83,24 @@ getiparam() {
 
 	if ((_length > idur)) ; then
 		_length="$idur"
-		echo "$(scr1pt): INFO: Clip duration reset: ${idur}s"
+		echo "${scp}: INFO: Clip duration reset: ${idur}s"
 	fi
 }
 
 uquit() {
-	echo "$(scr1pt): INFO: Press any key to exit the script or skip the file."
+	echo "${scp}: INFO: Press any key to exit the script or skip the file."
 	if read -rst "$q" -N 1 ; then
-		echo "$(scr1pt): File: $f1"
-		echo "$(scr1pt): Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
-		echo "$(scr1pt): Please confirm:"
+		echo "${scp}: File: $f1"
+		echo "${scp}: Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
+		echo "${scp}: Please confirm:"
 		select ans in "EXIT the script" "SKIP file" "Cancel" ; do
 			case "$ans" in
 				'EXIT the script' )
-					echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
-					echo "$(scr1pt): $((iterout - 1)) iterations completed - exiting..."
+					echo "${scp}: Clip Pattern playlist: ${lpatpl[*]}"
+					echo "${scp}: $((iterout - 1)) iterations completed - exiting..."
 					exit;;
 				'SKIP file' )
-					echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+					echo "${scp}: Clip Pattern playlist: ${lpatpl[*]}"
 					return 1;;
 				'Cancel' )
 					break;;
@@ -114,12 +112,12 @@ uquit() {
 
 core() {
 	if [ -z "$dur" ] ; then
-		echo "$(scr1pt): INFO: Total duration unknown - playing video from beginning."
+		echo "${scp}: INFO: Total duration unknown - playing video from beginning."
 	fi
-	echo "$(scr1pt): Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
-	echo "$(scr1pt): Options:" "${@:-None}"
-	echo "$(scr1pt): Loop Pattern: $lpat"
-	echo "$(scr1pt): Starting mpv..."
+	echo "${scp}: Interval: $ival / $ivals ($(((iterin - 1) * idur))-$((idur * iterin))s)"
+	echo "${scp}: Options:" "${@:-None}"
+	echo "${scp}: Loop Pattern: $lpat"
+	echo "${scp}: Starting mpv..."
 	mpv "$@" "$f1"
 }
 
@@ -133,12 +131,11 @@ core_llt() {
 		for line in "${iall[@]}" ; do
 			if [ -f "$line" ] ; then
 				f1="$line"
-				ff1="$(realpath -q "$f1")"
 				_length="$_lengtho"
 				dur="$(getdur)"
 				if ((_length > dur)) ; then
 					_length="$dur"
-					echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+					echo "${scp}: INFO: Clip duration reset: ${dur}s"
 				fi
 				idur="$dur"
 				ivals="$scal"
@@ -159,9 +156,9 @@ core_llt() {
 			else
 				if grep -q '[^[:space:]]' <<< "$line" ; then
 					if [ ${#line} -gt 90 ] ; then
-						echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
+						echo >&2 "${scp}: WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
 					else
-						echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
+						echo >&2 "${scp}: WARNING: Not a regular file - skipping: $line"
 					fi
 				fi
 			fi
@@ -180,7 +177,6 @@ core_ll() {
 	for line in "${iall[@]}" ; do
 		if [ -f "$line" ] ; then
 			f1="$line"
-			ff1="$(realpath -q "$f1")"
 			_length="$_lengtho"
 			dur="$(getdur)"
 			getiparam
@@ -201,16 +197,16 @@ core_ll() {
 				fi
 				core --start="$_start" --length="$_length" "$@"
 			done
-			echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+			echo "${scp}: Clip Pattern playlist: ${lpatpl[*]}"
 			unset lpatpl
 			unset _start
 			unset iterin
 		else
 			if grep -q '[^[:space:]]' <<< "$line" ; then
 				if [ ${#line} -gt 90 ] ; then
-					echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
+					echo >&2 "${scp}: WARNING: Not a regular file - skipping: ${line:0:45}...${line: -45}"
 				else
-					echo >&2 "$(scr1pt): WARNING: Not a regular file - skipping: $line"
+					echo >&2 "${scp}: WARNING: Not a regular file - skipping: $line"
 				fi
 			fi
 		fi
@@ -218,9 +214,9 @@ core_ll() {
 }
 
 if (("$#" == 0)) ; then
-	echo "$(scr1pt): Usage: $(scr1pt) {[<mpv profile,...>] <clip duration> <interval scale> [-l|-s|-t] [path/]filename | --help | --version}"
+	echo "${scp}: Usage: ${scp} {[<mpv profile,...>] <clip duration> <interval scale> [-l|-s|-t] [path/]filename | --help | --version}"
 elif [ '--version' = "$1" ] ; then
-	echo "mpvival 1.0"
+	echo "mpvival 1.1"
 elif [ '--help' = "$1" ] ; then
 	cat << '_EOF_'
 MPVIVAL - run MPV adjusted at intervals of the total duration of a file
@@ -358,18 +354,18 @@ elif [ '-l' = "$3" ] || [ '-ls' = "$3" ] || [ '-sl' = "$3" ] || [ '-tl' = "$3" ]
 					core_ll
 				fi
 			else
-				echo >&2 "$(scr1pt): WARNING: Empty file: $4"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: Empty file: $4"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $4"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $4"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist."
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 elif [ '-t' = "$3" ] || [ '-ts' = "$3" ] || [ '-st' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
 	swreq
 	_lengtho="$1"
@@ -395,7 +391,7 @@ elif [ '-t' = "$3" ] || [ '-ts' = "$3" ] || [ '-st' = "$3" ] && grep -qE "^[1-5]
 			elif [ -f "$f2" ] ; then
 				iall2+=("$f2")
 			else
-				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 			fi
 		done
 		if [ -v shuffle ] ; then
@@ -404,18 +400,17 @@ elif [ '-t' = "$3" ] || [ '-ts' = "$3" ] || [ '-st' = "$3" ] && grep -qE "^[1-5]
 			iall1+=("${iall2[@]}")
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	for (( ival=1 ; ival<=scal ; ival++ )) ; do
 		for f1 in "${iall1[@]}" ; do
-			ff1="$(realpath -q "$f1")"
 			_length="$_lengtho"
 			dur="$(getdur)"
 			if ((_length > dur)) ; then
 				_length="$dur"
-				echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+				echo "${scp}: INFO: Clip duration reset: ${dur}s"
 			fi
 			idur="$dur"
 			ivals="$scal"
@@ -434,7 +429,7 @@ elif [ '-t' = "$3" ] || [ '-ts' = "$3" ] || [ '-st' = "$3" ] && grep -qE "^[1-5]
 			unset _start
 		done
 	done
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 elif [ '-l' = "$4" ] || [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-tl' = "$4" ] || [ '-lt' = "$4" ] || [ '-lst' = "$4" ] || [ '-lts' = "$4" ] || [ '-tls' = "$4" ] || [ '-tsl' = "$4" ] || [ '-slt' = "$4" ] || [ '-stl' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 	swreq
 	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
@@ -446,8 +441,8 @@ elif [ '-l' = "$4" ] || [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-tl' = "$4" ]
 		_lengtho="$2"
 		scal="$3"
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	if [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-lst' = "$4" ] || [ '-lts' = "$4" ] || [ '-tls' = "$4" ] || [ '-tsl' = "$4" ] || [ '-slt' = "$4" ] || [ '-stl' = "$4" ] ; then
@@ -463,18 +458,18 @@ elif [ '-l' = "$4" ] || [ '-ls' = "$4" ] || [ '-sl' = "$4" ] || [ '-tl' = "$4" ]
 					core_ll --profile="$prf"
 				fi
 			else
-				echo >&2 "$(scr1pt): WARNING: Empty file: $5"
-				echo "$(scr1pt): Help summary: $(scr1pt) --help"
+				echo >&2 "${scp}: WARNING: Empty file: $5"
+				echo "${scp}: Help summary: ${scp} --help"
 			fi
 		else
-			echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist: $5"
-			echo "$(scr1pt): Help summary: $(scr1pt) --help"
+			echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist: $5"
+			echo "${scp}: Help summary: ${scp} --help"
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: A single plaintext file is expected for playlist."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: A single plaintext file is expected for playlist."
+		echo "${scp}: Help summary: ${scp} --help"
 	fi
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 	swreq
 	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
@@ -486,8 +481,8 @@ elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]
 		_lengtho="$2"
 		scal="$3"
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	iterin=1
@@ -511,7 +506,7 @@ elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]
 			elif [ -f "$f2" ] ; then
 				iall2+=("$f2")
 			else
-				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 			fi
 		done
 		if [ -v shuffle ] ; then
@@ -520,18 +515,17 @@ elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]
 			iall1+=("${iall2[@]}")
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	for (( ival=1 ; ival<=scal ; ival++ )) ; do
 		for f1 in "${iall1[@]}" ; do
-			ff1="$(realpath -q "$f1")"
 			_length="$_lengtho"
 			dur="$(getdur)"
 			if ((_length > dur)) ; then
 				_length="$dur"
-				echo "$(scr1pt): INFO: Clip duration reset: ${dur}s"
+				echo "${scp}: INFO: Clip duration reset: ${dur}s"
 			fi
 			idur="$dur"
 			ivals="$scal"
@@ -550,7 +544,7 @@ elif [ '-t' = "$4" ] || [ '-ts' = "$4" ] || [ '-st' = "$4" ] && grep -qE "^[1-5]
 			unset _start
 		done
 	done
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 elif [ -e "$3" ] || [ '-s' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
 	swreq
 	_lengtho="$1"
@@ -577,7 +571,7 @@ elif [ -e "$3" ] || [ '-s' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "
 			elif [ -f "$f2" ] ; then
 				iall2+=("$f2")
 			else
-				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 			fi
 		done
 		if [ -v shuffle ] ; then
@@ -586,12 +580,11 @@ elif [ -e "$3" ] || [ '-s' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "
 			iall1+=("${iall2[@]}")
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	for f1 in "${iall1[@]}" ; do
-		ff1="$(realpath -q "$f1")"
 		_length="$_lengtho"
 		dur="$(getdur)"
 		getiparam
@@ -612,12 +605,12 @@ elif [ -e "$3" ] || [ '-s' = "$3" ] && grep -qE "^[1-5]$" <<< "$2" && grep -qE "
 			fi
 			core --start="$_start" --length="$_length"
 		done
-		echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+		echo "${scp}: Clip Pattern playlist: ${lpatpl[*]}"
 		unset lpatpl
 		unset _start
 		unset iterin
 	done
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 	swreq
 	if grep -qE "^[0-9]+$" <<< "$1" && (("$1" > 0)) ; then
@@ -629,8 +622,8 @@ elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 		_lengtho="$2"
 		scal="$3"
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	if [ '-s' = "$4" ] ; then
@@ -655,7 +648,7 @@ elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 			elif [ -f "$f2" ] ; then
 				iall2+=("$f2")
 			else
-				echo >&2 "$(scr1pt): WARNING: No such file or directory - skipping: $f2"
+				echo >&2 "${scp}: WARNING: No such file or directory - skipping: $f2"
 			fi
 		done
 		if [ -v shuffle ] ; then
@@ -664,12 +657,11 @@ elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 			iall1+=("${iall2[@]}")
 		fi
 	else
-		echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-		echo "$(scr1pt): Help summary: $(scr1pt) --help"
+		echo >&2 "${scp}: WARNING: Invalid options - aborting."
+		echo "${scp}: Help summary: ${scp} --help"
 		exit 1
 	fi
 	for f1 in "${iall1[@]}" ; do
-		ff1="$(realpath -q "$f1")"
 		_length="$_lengtho"
 		dur="$(getdur)"
 		getiparam
@@ -690,13 +682,13 @@ elif [ -e "$4" ] || [ '-s' = "$4" ] && grep -qE "^[1-5]$" <<< "$3" ; then
 			fi
 			core --start="$_start" --length="$_length" --profile="$prf"
 		done
-		echo "$(scr1pt): Loop Pattern playlist: ${ff1},$(tr '[:blank:]' ',' <<< "${lpatpl[*]}")"
+		echo "${scp}: Clip Pattern playlist: ${lpatpl[*]}"
 		unset lpatpl
 		unset _start
 		unset iterin
 	done
-	echo "$(scr1pt): ${iterout:-0} iterations completed - exiting..."
+	echo "${scp}: ${iterout:-0} iterations completed - exiting..."
 else
-	echo >&2 "$(scr1pt): WARNING: Invalid options - aborting."
-	echo "$(scr1pt): Help summary: $(scr1pt) --help"
+	echo >&2 "${scp}: WARNING: Invalid options - aborting."
+	echo "${scp}: Help summary: ${scp} --help"
 fi
